@@ -99,6 +99,10 @@ The backend exposes a REST API at `/api/`:
 | `GET` | `/api/export/csv` | Export as CSV |
 | `POST` | `/api/import` | Import JSON or CSV |
 
+## AI Disclaimer
+
+This project was built with the assistance of [Claude Code](https://claude.ai/code) by Anthropic. AI-generated code has been reviewed and tested, but may contain imperfections. Use at your own risk.
+
 ## License
 
 MIT
