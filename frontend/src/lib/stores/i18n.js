@@ -6,9 +6,9 @@ const KEY = 'kellerlog_lang';
 const translations = { de, en };
 
 const initialLang = (() => {
-  if (typeof localStorage === 'undefined') return 'de';
+  if (typeof localStorage === 'undefined') return 'en';
   const s = localStorage.getItem(KEY);
-  return s === 'en' ? 'en' : 'de';
+  return s === 'de' ? 'de' : 'en';
 })();
 
 export const lang = writable(initialLang);
