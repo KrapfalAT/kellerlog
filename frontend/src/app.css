@@ -1,0 +1,51 @@
+:root {
+  --primary: #7B1D3F;
+  --primary-dark: #5a1530;
+  --primary-light: #a32857;
+  --accent: #C8A96E;
+  --bg: #F7F2EE;
+  --surface: #ffffff;
+  --surface-2: #f0ebe5;
+  --border: #e0d5cc;
+  --text: #1a0d11;
+  --text-muted: #6b5561;
+  --shadow: 0 2px 12px rgba(123, 29, 63, 0.1);
+  --shadow-lg: 0 8px 32px rgba(123, 29, 63, 0.18);
+
+  --red: #7B1D3F;
+  --white-wine: #c4911a;
+  --rose: #d4688a;
+  --sparkling: #2e7da6;
+  --dessert: #7040a0;
+  --other: #5a6372;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

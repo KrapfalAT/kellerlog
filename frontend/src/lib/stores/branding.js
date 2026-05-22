@@ -1,0 +1,91 @@
+import { writable } from 'svelte/store';
+
+const KEY = 'kellerlog_branding';
+
+export const DEFAULTS = {
+  primaryColor: '#480f25',
+  title: 'KellerLog',
+  subtitle: 'Meine Weinsammlung',
+  kioskTitle: 'Weinkarte',
+  kioskSubtitle: 'Unsere Weinauswahl',
+  kioskShowFooter: true,
+  logoUrl: '',
+};
+
+function hexToHsl(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l * 100];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  switch (max) {
+    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+    case g: h = ((b - r) / d + 2) / 6; break;
+    case b: h = ((r - g) / d + 4) / 6; break;
+  }
+  return [h * 360, s * 100, l * 100];
+}
+
+function hslToHex(h, s, l) {
+  s = Math.max(0, Math.min(100, s)) / 100;
+  l = Math.max(0, Math.min(100, l)) / 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))))
+      .toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+export function applyBranding(b) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const [h, s, l] = hexToHsl(b.primaryColor);
+  root.style.setProperty('--primary',       b.primaryColor);
+  root.style.setProperty('--primary-dark',  hslToHex(h, s,              Math.max(5,  l - 15)));
+  root.style.setProperty('--primary-light', hslToHex(h, Math.min(100, s + 10), Math.min(90, l + 15)));
+  root.style.setProperty('--header-start',  hslToHex(h, Math.min(100, s + 5),  Math.min(70, l + 8)));
+  root.style.setProperty('--header-end',    hslToHex(h, s,              Math.max(5,  l - 12)));
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
+  } catch {
+    return { ...DEFAULTS };
+  }
+}
+
+function createBrandingStore() {
+  const { subscribe, set, update } = writable({ ...DEFAULTS });
+
+  return {
+    subscribe,
+    init() {
+      const stored = load();
+      set(stored);
+      applyBranding(stored);
+    },
+    save(values) {
+      update(s => {
+        const next = { ...s, ...values };
+        try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { }
+        applyBranding(next);
+        return next;
+      });
+    },
+    reset() {
+      try { localStorage.removeItem(KEY); } catch { }
+      set({ ...DEFAULTS });
+      applyBranding(DEFAULTS);
+    },
+  };
+}
+
+export const branding = createBrandingStore();

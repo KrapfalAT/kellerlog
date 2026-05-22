@@ -1,0 +1,24 @@
+# Secrets
+.env
+
+# Runtime data (wine database + uploaded images)
+kellerlog/
+
+# Claude Code settings
+.claude/
+
+# Node / SvelteKit
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/dist/
+frontend/build/
+
+# Python
+backend/__pycache__/
+backend/*.pyc
+**/__pycache__/
+**/*.pyc
+
+# OS
+.DS_Store
+Thumbs.db

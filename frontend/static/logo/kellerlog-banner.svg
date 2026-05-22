@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200" height="280">
+  <defs>
+    <clipPath id="icon-clip-banner">
+      <rect x="40" y="40" width="200" height="200" rx="44"/>
+    </clipPath>
+  </defs>
+
+  <!-- Banner background -->
+  <rect x="0" y="0" width="1200" height="280" fill="#0D0D1A"/>
+
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="70"  x2="1200" y2="70"  stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="0" y1="140" x2="1200" y2="140" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="0" y1="210" x2="1200" y2="210" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="300" y1="0" x2="300" y2="280" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="600" y1="0" x2="600" y2="280" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="900" y1="0" x2="900" y2="280" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+
+  <!-- Icon bg -->
+  <rect x="40" y="40" width="200" height="200" rx="44" fill="#1A1A2E"/>
+
+  <g clip-path="url(#icon-clip-banner)">
+    <path d="M140 78 Q140 68 140 60" stroke="#9B8040" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M140 70 Q126 58 122 46" stroke="#9B8040" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M122 46 Q112 34 118 24 Q130 22 133 36 Q134 42 122 46Z" fill="#3A7A30"/>
+    <circle cx="128" cy="112" r="22" fill="#7B45A8"/>
+    <circle cx="156" cy="112" r="22" fill="#6B35A0"/>
+    <circle cx="112" cy="147" r="20" fill="#8B55B8"/>
+    <circle cx="140" cy="147" r="20" fill="#7B45A8"/>
+    <circle cx="168" cy="147" r="20" fill="#6B35A0"/>
+    <circle cx="122" cy="180" r="19" fill="#7B45A8"/>
+    <circle cx="150" cy="180" r="19" fill="#8B55B8"/>
+    <circle cx="140" cy="210" r="17" fill="#6B35A0"/>
+    <rect x="52"  y="218" width="11" height="16" rx="2" fill="#00FF88"/>
+    <rect x="68"  y="220" width="55" height="5" rx="1.5" fill="rgba(0,255,136,0.80)"/>
+    <rect x="68"  y="229" width="38" height="5" rx="1.5" fill="rgba(0,255,136,0.50)"/>
+    <rect x="68"  y="238" width="48" height="5" rx="1.5" fill="rgba(0,255,136,0.65)"/>
+  </g>
+
+  <!-- App name -->
+  <text x="278" y="148" font-family="ui-monospace, 'Cascadia Code', monospace" font-size="82" font-weight="600" fill="#FFFFFF" letter-spacing="-2">KellerLog</text>
+
+  <!-- Tagline -->
+  <text x="282" y="192" font-family="ui-monospace, 'Cascadia Code', monospace" font-size="22" fill="rgba(0,255,136,0.85)" letter-spacing="1">wine management · self-hosted · open source</text>
+
+  <!-- Right decoration: log lines -->
+  <rect x="1080" y="80"  width="80" height="6" rx="3" fill="rgba(0,255,136,0.20)"/>
+  <rect x="1060" y="96"  width="100" height="6" rx="3" fill="rgba(0,255,136,0.12)"/>
+  <rect x="1070" y="112" width="90" height="6" rx="3" fill="rgba(0,255,136,0.16)"/>
+  <rect x="1050" y="128" width="110" height="6" rx="3" fill="rgba(0,255,136,0.10)"/>
+</svg>
