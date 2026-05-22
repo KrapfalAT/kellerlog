@@ -423,7 +423,7 @@
   </main>
 
   <footer class="footer">
-    <span>KellerLog</span>
+    <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">KellerLog</a>
   </footer>
 
   <!-- FAB -->
@@ -803,6 +803,12 @@
     border-top: 1px solid var(--border);
     background: var(--surface);
   }
+  .footer-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-link:hover { color: var(--primary); }
 
   /* Controls */
   .controls {
