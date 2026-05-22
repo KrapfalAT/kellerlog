@@ -127,7 +127,7 @@
 
   {#if $branding.kioskShowFooter}
     <footer class="kiosk-footer">
-      <span>{$branding.title}</span>
+      <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">{$branding.title}</a>
     </footer>
   {/if}
 
@@ -336,6 +336,12 @@
     border-top: 1px solid var(--border);
     background: var(--surface);
   }
+  .footer-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-link:hover { color: var(--primary); }
 
   @media (max-width: 600px) {
     h1 { font-size: 18px; }
