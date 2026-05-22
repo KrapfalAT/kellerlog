@@ -34,7 +34,7 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/kellerlog.git
+git clone https://github.com/KrapfalAT/kellerlog.git
 cd kellerlog
 cp .env.example .env
 ```
