@@ -93,6 +93,9 @@
   "import_success_verb": "importiert",
   "import_skipped": "übersprungen",
 
+  "branding_darkmode": "Dark Mode",
+  "branding_darkmode_desc": "Dunkles Farbschema aktivieren",
+
   "branding_panel_title": "Branding",
   "branding_panel_subtitle": "Logo, Farbe & Texte anpassen",
   "branding_color_section": "Primärfarbe",

@@ -20,6 +20,17 @@
   --other: #5a6372;
 }
 
+.dark {
+  --bg: #141010;
+  --surface: #1e1518;
+  --surface-2: #261b1f;
+  --border: #3d2830;
+  --text: #f0e6ea;
+  --text-muted: #9a7a87;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.55);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

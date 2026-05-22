@@ -93,6 +93,9 @@
   "import_success_verb": "imported",
   "import_skipped": "skipped",
 
+  "branding_darkmode": "Dark Mode",
+  "branding_darkmode_desc": "Enable dark color scheme",
+
   "branding_panel_title": "Branding",
   "branding_panel_subtitle": "Customize logo, color & text",
   "branding_color_section": "Primary Color",

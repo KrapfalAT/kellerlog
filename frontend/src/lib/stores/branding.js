@@ -4,6 +4,7 @@ const KEY = 'kellerlog_branding';
 
 export const DEFAULTS = {
   primaryColor: '#480f25',
+  darkMode: false,
   title: 'KellerLog',
   subtitle: 'Meine Weinsammlung',
   kioskTitle: 'Weinkarte',
@@ -51,6 +52,7 @@ export function applyBranding(b) {
   root.style.setProperty('--primary-light', hslToHex(h, Math.min(100, s + 10), Math.min(90, l + 15)));
   root.style.setProperty('--header-start',  hslToHex(h, Math.min(100, s + 5),  Math.min(70, l + 8)));
   root.style.setProperty('--header-end',    hslToHex(h, s,              Math.max(5,  l - 12)));
+  root.classList.toggle('dark', !!b.darkMode);
 }
 
 function load() {

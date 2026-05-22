@@ -6,6 +6,7 @@
 
   const dispatch = createEventDispatcher();
 
+  let darkMode     = $branding.darkMode ?? false;
   let color        = $branding.primaryColor;
   let title        = $branding.title;
   let subtitle     = $branding.subtitle;
@@ -15,6 +16,8 @@
   let logoUrl         = $branding.logoUrl;
   let uploadingLogo = false;
   let logoInput;
+
+  function onDarkMode() { branding.save({ darkMode }); }
 
   function onColor(e) {
     color = e.target.value;
@@ -54,6 +57,7 @@
   }
 
   function reset() {
+    darkMode      = DEFAULTS.darkMode;
     color         = DEFAULTS.primaryColor;
     title         = DEFAULTS.title;
     subtitle      = DEFAULTS.subtitle;
@@ -85,6 +89,20 @@
     </div>
 
     <div class="body">
+
+      <!-- Dark mode -->
+      <section class="section">
+        <label class="toggle-row">
+          <div>
+            <div class="toggle-label">{$t('branding_darkmode')}</div>
+            <div class="toggle-desc">{$t('branding_darkmode_desc')}</div>
+          </div>
+          <input type="checkbox" bind:checked={darkMode} on:change={onDarkMode} class="toggle-input" />
+          <span class="toggle-track" class:on={darkMode}><span class="toggle-thumb"></span></span>
+        </label>
+      </section>
+
+      <div class="divider"></div>
 
       <!-- Color -->
       <section class="section">
@@ -394,6 +412,9 @@
     transition: border-color 0.15s;
   }
   .field input:focus { outline: none; border-color: var(--primary); }
+
+  .toggle-label { font-size: 13px; color: var(--text); }
+  .toggle-desc  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
   /* Toggle */
   .toggle-row {
