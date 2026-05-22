@@ -16,6 +16,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
+  // Only handle http/https — ignore chrome-extension://, data:, etc.
+  if (!url.protocol.startsWith('http')) return;
+
   // Always use network for API calls
   if (url.pathname.startsWith('/api/')) return;
 
@@ -29,7 +32,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return resp;
-      });
+      }).catch(() => cached);
     })
   );
 });
