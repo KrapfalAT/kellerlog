@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, text, func, or_
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text, func, or_
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 DATABASE_URL = "sqlite:////app/data/wines.db"
@@ -79,6 +79,7 @@ class WineModel(Base):
     pairings = Column(String, default="")
     description = Column(String, default="")
     wineapi_id = Column(String, default="")
+    by_glass = Column(Boolean, default=False)
     added_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -118,6 +119,7 @@ def _ensure_columns():
         ("pairings", "TEXT DEFAULT ''"),
         ("description", "TEXT DEFAULT ''"),
         ("wineapi_id", "TEXT DEFAULT ''"),
+        ("by_glass", "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.execute(text("PRAGMA table_info(wines)"))}
@@ -173,6 +175,7 @@ class WineCreate(BaseModel):
     pairings: str = ""
     description: str = ""
     wineapi_id: str = ""
+    by_glass: bool = False
 
 
 class WineUpdate(BaseModel):
@@ -195,6 +198,7 @@ class WineUpdate(BaseModel):
     pairings: Optional[str] = None
     description: Optional[str] = None
     wineapi_id: Optional[str] = None
+    by_glass: Optional[bool] = None
 
 
 class WineResponse(BaseModel):
@@ -218,6 +222,7 @@ class WineResponse(BaseModel):
     pairings: str
     description: str
     wineapi_id: str
+    by_glass: bool
     added_at: datetime
 
     model_config = {"from_attributes": True}

@@ -25,6 +25,7 @@
   "empty_no_results_sub": "Try different filters or search terms.",
 
   "filter_all": "All",
+  "filter_by_glass": "By the Glass",
   "filter_red": "Red Wine",
   "filter_white": "White Wine",
   "filter_rose": "Rosé",
@@ -133,6 +134,9 @@
   "modal_field_description": "Description / Tasting note",
   "modal_field_pairings": "Food pairings",
   "modal_field_notes": "Personal notes",
+  "modal_field_by_glass": "Available by the glass",
+  "modal_field_by_glass_desc": "Show in kiosk as glass wine",
+  "kiosk_by_glass": "By the Glass",
   "modal_field_photo": "Photo",
   "modal_photo_change": "Change photo",
   "modal_photo_upload": "Upload photo",

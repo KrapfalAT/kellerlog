@@ -16,6 +16,7 @@
 
   $: typeFilters = [
     { value: 'all',      label: $t('filter_all') },
+    { value: 'by_glass', label: $t('filter_by_glass') },
     { value: 'red',      label: $t('filter_red') },
     { value: 'white',    label: $t('filter_white') },
     { value: 'rosé',     label: $t('filter_rose') },
@@ -25,7 +26,11 @@
   ];
 
   $: filteredWines = wines
-    .filter(w => filterType === 'all' || w.type === filterType)
+    .filter(w => {
+      if (filterType === 'all') return true;
+      if (filterType === 'by_glass') return !!w.by_glass;
+      return w.type === filterType;
+    })
     .filter(w => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();

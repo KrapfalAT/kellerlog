@@ -54,6 +54,14 @@
       </div>
     {/if}
     <span class="badge type-{wine.type}">{typeLabel[wine.type] || wine.type}</span>
+    {#if wine.by_glass}
+      <span class="badge glass-badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M8 22h8M12 22v-7M5 2h14l-4 8a5 5 0 01-10 0L5 2z"/>
+        </svg>
+        {$t('kiosk_by_glass')}
+      </span>
+    {/if}
   </div>
 
   <div class="card-body">
@@ -205,6 +213,16 @@
   .type-sparkling { background: var(--sparkling); }
   .type-dessert { background: var(--dessert); }
   .type-other  { background: var(--other); }
+  .glass-badge {
+    top: auto;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(20, 20, 20, 0.65);
+    backdrop-filter: blur(4px);
+  }
 
   .card-body {
     padding: 14px;

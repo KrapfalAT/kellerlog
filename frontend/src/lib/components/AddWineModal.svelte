@@ -15,7 +15,7 @@
     region: '', country: '', type: 'red', alcohol: null,
     rating: null, quantity: 1, notes: '', price: null,
     barcode: '', image_url: '', body: '', acidity: '',
-    pairings: '', description: '', wineapi_id: ''
+    pairings: '', description: '', wineapi_id: '', by_glass: false
   };
 
   function initForm() {
@@ -411,6 +411,17 @@
           <div class="field span-2">
             <label for="notes">{$t('modal_field_notes')}</label>
             <textarea id="notes" bind:value={form.notes} placeholder={$t('modal_field_notes')} rows="2"></textarea>
+          </div>
+
+          <div class="field span-2">
+            <label class="toggle-row">
+              <div>
+                <div class="toggle-label">{$t('modal_field_by_glass')}</div>
+                <div class="toggle-desc">{$t('modal_field_by_glass_desc')}</div>
+              </div>
+              <input type="checkbox" bind:checked={form.by_glass} class="toggle-input" />
+              <span class="toggle-track" class:on={form.by_glass}><span class="toggle-thumb"></span></span>
+            </label>
           </div>
 
           <div class="field span-2">
@@ -840,6 +851,35 @@
     color: var(--text-muted);
   }
   .url-input:focus { outline: none; border-color: var(--primary); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .toggle-desc  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .toggle-input { display: none; }
+  .toggle-track {
+    width: 40px; height: 22px; flex-shrink: 0;
+    border-radius: 11px; background: var(--border);
+    position: relative; transition: background 0.2s;
+  }
+  .toggle-track.on { background: var(--primary); }
+  .toggle-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+  }
+  .toggle-track.on .toggle-thumb { transform: translateX(18px); }
 
   .result-item.local { background: rgba(123, 29, 63, 0.03); }
   .result-title {

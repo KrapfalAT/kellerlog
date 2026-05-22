@@ -25,6 +25,7 @@
   "empty_no_results_sub": "Versuche andere Filter oder Suchbegriffe.",
 
   "filter_all": "Alle",
+  "filter_by_glass": "Per Glas",
   "filter_red": "Rotwein",
   "filter_white": "Weißwein",
   "filter_rose": "Rosé",
@@ -133,6 +134,9 @@
   "modal_field_description": "Beschreibung / Verkostungsnotiz",
   "modal_field_pairings": "Speisenempfehlung",
   "modal_field_notes": "Persönliche Notizen",
+  "modal_field_by_glass": "Per Glas verfügbar",
+  "modal_field_by_glass_desc": "Im Kiosk als Glaswein anzeigen",
+  "kiosk_by_glass": "Per Glas",
   "modal_field_photo": "Foto",
   "modal_photo_change": "Foto ändern",
   "modal_photo_upload": "Foto hochladen",
