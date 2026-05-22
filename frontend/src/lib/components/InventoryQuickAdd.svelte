@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import { uploadImage } from '$lib/api.js';
+  import { t } from '$lib/stores/i18n.js';
 
   export let wine;
   export let isNew = false;
@@ -18,13 +19,13 @@
   let uploadError = false;
   let photoInput;
 
-  const typeOptions = [
-    { value: 'red', label: 'Rotwein' },
-    { value: 'white', label: 'Weißwein' },
-    { value: 'rosé', label: 'Rosé' },
-    { value: 'sparkling', label: 'Sekt' },
-    { value: 'dessert', label: 'Dessertwein' },
-    { value: 'other', label: 'Sonstiger' },
+  $: typeOptions = [
+    { value: 'red',      label: $t('type_red') },
+    { value: 'white',    label: $t('type_white') },
+    { value: 'rosé',     label: $t('type_rose') },
+    { value: 'sparkling',label: $t('type_sparkling') },
+    { value: 'dessert',  label: $t('type_dessert') },
+    { value: 'other',    label: $t('type_other') },
   ];
 
   function increment() { qty++; }
@@ -94,13 +95,13 @@
       <input type="file" accept="image/*" capture="environment" bind:this={photoInput} on:change={handlePhoto} style="display:none" />
 
       <div class="wine-meta">
-        <input class="name-input" bind:value={localName} placeholder="Weinname" />
+        <input class="name-input" bind:value={localName} placeholder={$t('inv_wine_name')} />
         {#if uploadError}
-          <span class="upload-err">Foto-Upload fehlgeschlagen</span>
+          <span class="upload-err">{$t('inv_upload_error')}</span>
         {:else if !isNew}
-          <span class="stock-info">Im Keller: {wine.quantity} Fl.</span>
+          <span class="stock-info">{$t('inv_stock_info')}: {wine.quantity} {$t('inv_bottles')}</span>
         {:else}
-          <span class="new-badge">Neuer Wein</span>
+          <span class="new-badge">{$t('inv_new_wine')}</span>
         {/if}
       </div>
     </div>
@@ -109,17 +110,17 @@
     <div class="fields">
       <div class="field-row">
         <div class="field">
-          <label>Weingut</label>
-          <input type="text" bind:value={localProducer} placeholder="Produzent" />
+          <label>{$t('modal_field_producer')}</label>
+          <input type="text" bind:value={localProducer} placeholder={$t('modal_field_producer')} />
         </div>
         <div class="field">
-          <label>Jahrgang</label>
+          <label>{$t('modal_field_vintage')}</label>
           <input type="number" bind:value={localVintage} placeholder="2020" min="1900" max="2100" />
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>Weinart</label>
+          <label>{$t('modal_field_type')}</label>
           <select bind:value={localType}>
             {#each typeOptions as opt}
               <option value={opt.value}>{opt.label}</option>
@@ -127,7 +128,7 @@
           </select>
         </div>
         <div class="field">
-          <label>Preis (€)</label>
+          <label>{$t('modal_field_price')}</label>
           <input type="number" bind:value={localPrice} placeholder="0.00" step="0.01" min="0" />
         </div>
       </div>
@@ -138,23 +139,23 @@
       <button class="qty-btn minus" on:click={decrement}>−</button>
       <div class="qty-center">
         <span class="qty-num">{qty}</span>
-        <span class="qty-label">hinzufügen</span>
+        <span class="qty-label">{$t('inv_qty_add')}</span>
       </div>
       <button class="qty-btn plus" on:click={increment}>+</button>
     </div>
 
     <!-- Actions -->
     <div class="actions">
-      <button class="btn-cancel" on:click={cancel}>Abbrechen</button>
+      <button class="btn-cancel" on:click={cancel}>{$t('modal_cancel')}</button>
       <button class="btn-confirm" on:click={confirm} disabled={uploading}>
         {#if uploading}
           <div class="spinner-sm"></div>
-          Hochladen…
+          {$t('modal_photo_uploading')}
         {:else}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          Hinzufügen
+          {$t('inv_add_btn')}
         {/if}
       </button>
     </div>

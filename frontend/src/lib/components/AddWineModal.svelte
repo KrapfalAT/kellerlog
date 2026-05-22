@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { searchWines, lookupBarcode, getWineDetails, uploadImage, searchLibrary } from '$lib/api.js';
+  import { t } from '$lib/stores/i18n.js';
   import BarcodeScanner from './BarcodeScanner.svelte';
 
   export let wine = null;       // null = new, object = edit existing
@@ -40,13 +41,13 @@
   let uploading = false;
   let fileInput;
 
-  const typeOptions = [
-    { value: 'red', label: 'Rotwein' },
-    { value: 'white', label: 'Weißwein' },
-    { value: 'rosé', label: 'Rosé' },
-    { value: 'sparkling', label: 'Sekt / Schaumwein' },
-    { value: 'dessert', label: 'Dessertwein' },
-    { value: 'other', label: 'Sonstiger' },
+  $: typeOptions = [
+    { value: 'red',      label: $t('type_red') },
+    { value: 'white',    label: $t('type_white') },
+    { value: 'rosé',     label: $t('type_rose') },
+    { value: 'sparkling',label: $t('type_sparkling_long') },
+    { value: 'dessert',  label: $t('type_dessert') },
+    { value: 'other',    label: $t('type_other') },
   ];
 
   function handleSearchInput(event) {
@@ -169,7 +170,7 @@
   }
 
   async function handleSubmit() {
-    if (!form.name.trim()) { error = 'Name ist erforderlich'; return; }
+    if (!form.name.trim()) { error = 'modal_error_required'; return; }
     error = '';
     saving = true;
     try {
@@ -193,7 +194,7 @@
     try {
       form.image_url = await uploadImage(file);
     } catch {
-      error = 'Bild konnte nicht hochgeladen werden';
+      error = 'modal_error_upload';
     } finally {
       uploading = false;
       event.target.value = '';
@@ -218,8 +219,8 @@
 <div class="backdrop" on:click={handleBackdrop}>
   <div class="modal" role="dialog" aria-modal="true">
     <header class="modal-header">
-      <h2>{wine ? 'Wein bearbeiten' : 'Wein hinzufügen'}</h2>
-      <button class="close-btn" on:click={() => dispatch('close')} aria-label="Schließen">
+      <h2>{wine ? $t('modal_edit_title') : $t('modal_add_title')}</h2>
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('modal_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -229,7 +230,7 @@
     <div class="modal-body">
       <!-- API Search -->
       <div class="search-section">
-        <label class="field-label" for="api-search">Automatisch suchen (Name oder Barcode)</label>
+        <label class="field-label" for="api-search">{$t('modal_auto_search')}</label>
         <div class="search-row">
           <div class="search-input-wrap">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -239,7 +240,7 @@
               type="text"
               id="api-search"
               class="search-input"
-              placeholder="z.B. Château Margaux oder Barcode..."
+              placeholder={$t('modal_search_placeholder')}
               bind:value={searchInput}
               on:input={handleSearchInput}
             />
@@ -270,7 +271,7 @@
                     <div class="result-title">
                       <strong>{result.name}</strong>
                       {#if result.source === 'local'}
-                        <span class="local-badge">Lokal gespeichert</span>
+                        <span class="local-badge">{$t('modal_local_saved')}</span>
                       {/if}
                     </div>
                     {#if result.producer}<span>{result.producer}</span>{/if}
@@ -282,13 +283,9 @@
           </ul>
         {:else if hasSearched && !isSearching && searchInput.trim().length >= 2}
           {#if apiUnavailable}
-            <p class="no-results api-warn">
-              ⚠ WineAPI gerade nicht erreichbar — bitte Details manuell eingeben oder später erneut suchen.
-            </p>
+            <p class="no-results api-warn">⚠ {$t('modal_api_warn')}</p>
           {:else}
-            <p class="no-results">
-              Kein Eintrag gefunden — du kannst die Details unten manuell eingeben.
-            </p>
+            <p class="no-results">{$t('modal_not_found')}</p>
           {/if}
         {/if}
       </div>
@@ -296,33 +293,33 @@
       {#if isLoadingDetails}
         <div class="loading-details">
           <div class="spinner-sm"></div>
-          <span>Lade vollständige Weindetails...</span>
+          <span>{$t('modal_loading_details')}</span>
         </div>
       {/if}
 
       <div class="divider">
-        <span>Weindetails</span>
+        <span>{$t('modal_wine_details')}</span>
       </div>
 
       <!-- Form -->
       <form on:submit|preventDefault={handleSubmit} id="wine-form">
         {#if error}
-          <p class="error">{error}</p>
+          <p class="error">{$t(error)}</p>
         {/if}
 
         <div class="form-grid">
           <div class="field span-2">
-            <label for="name">Name *</label>
-            <input id="name" type="text" bind:value={form.name} placeholder="Weinname" required />
+            <label for="name">{$t('modal_field_name')}</label>
+            <input id="name" type="text" bind:value={form.name} placeholder={$t('modal_field_name')} required />
           </div>
 
           <div class="field">
-            <label for="producer">Weingut / Produzent</label>
-            <input id="producer" type="text" bind:value={form.producer} placeholder="Weingut" />
+            <label for="producer">{$t('modal_field_producer')}</label>
+            <input id="producer" type="text" bind:value={form.producer} placeholder={$t('modal_field_producer')} />
           </div>
 
           <div class="field">
-            <label for="type">Weinart</label>
+            <label for="type">{$t('modal_field_type')}</label>
             <select id="type" bind:value={form.type}>
               {#each typeOptions as opt}
                 <option value={opt.value}>{opt.label}</option>
@@ -331,44 +328,44 @@
           </div>
 
           <div class="field">
-            <label for="vintage">Jahrgang</label>
-            <input id="vintage" type="number" bind:value={form.vintage} placeholder="z.B. 2019" min="1900" max="2100" />
+            <label for="vintage">{$t('modal_field_vintage')}</label>
+            <input id="vintage" type="number" bind:value={form.vintage} placeholder="2019" min="1900" max="2100" />
           </div>
 
           <div class="field">
-            <label for="grape">Rebsorte</label>
-            <input id="grape" type="text" bind:value={form.grape} placeholder="z.B. Riesling" />
+            <label for="grape">{$t('modal_field_grape')}</label>
+            <input id="grape" type="text" bind:value={form.grape} placeholder={$t('modal_field_grape')} />
           </div>
 
           <div class="field">
-            <label for="region">Region</label>
-            <input id="region" type="text" bind:value={form.region} placeholder="z.B. Mosel" />
+            <label for="region">{$t('modal_field_region')}</label>
+            <input id="region" type="text" bind:value={form.region} placeholder={$t('modal_field_region')} />
           </div>
 
           <div class="field">
-            <label for="country">Land</label>
-            <input id="country" type="text" bind:value={form.country} placeholder="z.B. Deutschland" />
+            <label for="country">{$t('modal_field_country')}</label>
+            <input id="country" type="text" bind:value={form.country} placeholder={$t('modal_field_country')} />
           </div>
 
           <div class="field">
-            <label for="alcohol">Alkohol (%)</label>
-            <input id="alcohol" type="number" bind:value={form.alcohol} placeholder="z.B. 13.5" step="0.1" min="0" max="25" />
+            <label for="alcohol">{$t('modal_field_alcohol')}</label>
+            <input id="alcohol" type="number" bind:value={form.alcohol} placeholder="13.5" step="0.1" min="0" max="25" />
           </div>
 
           {#if !hideStock}
           <div class="field">
-            <label for="quantity">Flaschen im Keller</label>
+            <label for="quantity">{$t('modal_field_quantity')}</label>
             <input id="quantity" type="number" bind:value={form.quantity} min="0" />
           </div>
           {/if}
 
           <div class="field">
-            <label for="price">Preis (€)</label>
+            <label for="price">{$t('modal_field_price')}</label>
             <input id="price" type="number" bind:value={form.price} placeholder="0.00" step="0.01" min="0" />
           </div>
 
           <div class="field span-2">
-            <label id="rating-label">Bewertung</label>
+            <label id="rating-label">{$t('modal_field_rating')}</label>
             <div class="star-rating" role="group" aria-labelledby="rating-label">
               {#each [1,2,3,4,5] as n}
                 <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>
@@ -382,63 +379,63 @@
           </div>
 
           <div class="field">
-            <label for="body">Körper</label>
+            <label for="body">{$t('modal_field_body')}</label>
             <select id="body" bind:value={form.body}>
               <option value="">—</option>
-              <option value="Light-bodied">Leicht</option>
-              <option value="Medium-bodied">Mittel</option>
-              <option value="Full-bodied">Vollmundig</option>
+              <option value="Light-bodied">{$t('body_light')}</option>
+              <option value="Medium-bodied">{$t('body_medium')}</option>
+              <option value="Full-bodied">{$t('body_full')}</option>
             </select>
           </div>
 
           <div class="field">
-            <label for="acidity">Säure</label>
+            <label for="acidity">{$t('modal_field_acidity')}</label>
             <select id="acidity" bind:value={form.acidity}>
               <option value="">—</option>
-              <option value="Low">Niedrig</option>
-              <option value="Medium">Mittel</option>
-              <option value="High">Hoch</option>
+              <option value="Low">{$t('acidity_low')}</option>
+              <option value="Medium">{$t('acidity_medium')}</option>
+              <option value="High">{$t('acidity_high')}</option>
             </select>
           </div>
 
           <div class="field span-2">
-            <label for="pairings">Speisen-Empfehlung</label>
-            <input id="pairings" type="text" bind:value={form.pairings} placeholder="z.B. Rindfleisch, Lamm, Wild" />
+            <label for="pairings">{$t('modal_field_pairings')}</label>
+            <input id="pairings" type="text" bind:value={form.pairings} placeholder={$t('modal_field_pairings')} />
           </div>
 
           <div class="field span-2">
-            <label for="description">Beschreibung</label>
-            <textarea id="description" bind:value={form.description} placeholder="Weinbeschreibung..." rows="2"></textarea>
+            <label for="description">{$t('modal_field_description')}</label>
+            <textarea id="description" bind:value={form.description} placeholder={$t('modal_field_description')} rows="2"></textarea>
           </div>
 
           <div class="field span-2">
-            <label for="notes">Persönliche Notizen</label>
-            <textarea id="notes" bind:value={form.notes} placeholder="Eigene Notizen, Geschmack, Anlass..." rows="2"></textarea>
+            <label for="notes">{$t('modal_field_notes')}</label>
+            <textarea id="notes" bind:value={form.notes} placeholder={$t('modal_field_notes')} rows="2"></textarea>
           </div>
 
           <div class="field span-2">
-            <label>Bild</label>
+            <label>{$t('modal_field_photo')}</label>
             <div class="image-field">
               {#if form.image_url}
                 <div class="img-preview">
-                  <img src={form.image_url} alt="Vorschau" />
-                  <button type="button" class="img-remove" on:click={() => form.image_url = ''} title="Bild entfernen">×</button>
+                  <img src={form.image_url} alt={form.name} />
+                  <button type="button" class="img-remove" on:click={() => form.image_url = ''} title={$t('modal_remove_image')}>×</button>
                 </div>
               {/if}
               <input type="file" accept="image/*" capture="environment" bind:this={fileInput} on:change={handleFileUpload} style="display:none" />
               <button type="button" class="btn-upload" on:click={() => fileInput.click()} disabled={uploading}>
                 {#if uploading}
                   <div class="spinner-sm"></div>
-                  Wird hochgeladen...
+                  {$t('modal_photo_uploading')}
                 {:else}
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
                     <circle cx="12" cy="13" r="4"/>
                   </svg>
-                  Foto aufnehmen / Bild hochladen
+                  {$t('modal_photo_upload')}
                 {/if}
               </button>
-              <input type="text" id="image_url" bind:value={form.image_url} placeholder="oder Bild-URL eingeben..." class="url-input" />
+              <input type="text" id="image_url" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
             </div>
           </div>
         </div>
@@ -446,9 +443,9 @@
     </div>
 
     <footer class="modal-footer">
-      <button type="button" class="btn-secondary" on:click={() => dispatch('close')}>Abbrechen</button>
+      <button type="button" class="btn-secondary" on:click={() => dispatch('close')}>{$t('modal_cancel')}</button>
       <button type="submit" form="wine-form" class="btn-primary" disabled={saving}>
-        {saving ? 'Speichern...' : wine ? 'Aktualisieren' : 'Hinzufügen'}
+        {saving ? $t('modal_updating') : wine ? $t('modal_update') : $t('nav_add')}
       </button>
     </footer>
   </div>
