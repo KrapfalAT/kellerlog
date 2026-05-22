@@ -7,6 +7,7 @@ services:
       - ./kellerlog:/app/data
     environment:
       - WINEAPI_KEY=${WINEAPI_KEY:-}
+      - KELLERLOG_ADMIN_KEY=${KELLERLOG_ADMIN_KEY:-}
     restart: unless-stopped
 
   frontend:

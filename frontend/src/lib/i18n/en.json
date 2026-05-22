@@ -13,6 +13,7 @@
   "menu_backup": "Backup & Import",
   "menu_branding": "Branding",
   "menu_language": "Language",
+  "menu_admin_key": "Admin Key",
 
   "loading": "Loading KellerLog...",
   "error_connection": "Could not connect to server. Is the backend running?",
@@ -49,6 +50,7 @@
   "toast_error_delete": "Error deleting",
   "toast_barcode_not_found": "Barcode not found",
   "toast_error_search": "Error searching",
+  "toast_unauthorized": "Invalid admin key — please enter it in the menu",
 
   "confirm_delete": "Really delete this wine?",
 

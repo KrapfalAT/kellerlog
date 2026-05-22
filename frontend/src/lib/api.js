@@ -1,4 +1,17 @@
 const BASE = '/api';
+const ADMIN_KEY_STORAGE = 'kellerlog_admin_key';
+
+export const getAdminKey = () => {
+  if (typeof localStorage === 'undefined') return '';
+  return localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+};
+export const setAdminKey = (key) => {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(ADMIN_KEY_STORAGE, key);
+};
+
+function authHeaders() {
+  return { 'X-Admin-Key': getAdminKey() };
+}
 
 export async function getWines() {
   const r = await fetch(`${BASE}/wines`);
@@ -9,9 +22,10 @@ export async function getWines() {
 export async function createWine(wine) {
   const r = await fetch(`${BASE}/wines`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(wine),
   });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Fehler beim Speichern');
   return r.json();
 }
@@ -19,15 +33,20 @@ export async function createWine(wine) {
 export async function updateWine(id, wine) {
   const r = await fetch(`${BASE}/wines/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(wine),
   });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Fehler beim Aktualisieren');
   return r.json();
 }
 
 export async function deleteWine(id) {
-  const r = await fetch(`${BASE}/wines/${id}`, { method: 'DELETE' });
+  const r = await fetch(`${BASE}/wines/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Fehler beim Löschen');
 }
 
@@ -53,7 +72,8 @@ export async function lookupBarcode(barcode) {
 export async function uploadImage(file) {
   const fd = new FormData();
   fd.append('file', file);
-  const r = await fetch(`${BASE}/upload`, { method: 'POST', body: fd });
+  const r = await fetch(`${BASE}/upload`, { method: 'POST', headers: authHeaders(), body: fd });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Upload fehlgeschlagen');
   const data = await r.json();
   return data.url;
@@ -79,7 +99,8 @@ export async function getLibrary() {
 }
 
 export async function deleteLibraryEntry(id) {
-  const r = await fetch(`${BASE}/library/${id}`, { method: 'DELETE' });
+  const r = await fetch(`${BASE}/library/${id}`, { method: 'DELETE', headers: authHeaders() });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Fehler beim Löschen');
 }
 
@@ -100,7 +121,8 @@ export async function exportWines(format) {
 export async function importWines(file) {
   const fd = new FormData();
   fd.append('file', file);
-  const r = await fetch(`${BASE}/import`, { method: 'POST', body: fd });
+  const r = await fetch(`${BASE}/import`, { method: 'POST', headers: authHeaders(), body: fd });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Import fehlgeschlagen');
   return r.json();
 }

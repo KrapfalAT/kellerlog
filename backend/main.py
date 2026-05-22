@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import os
+import secrets
 import uuid
 import shutil
 from datetime import datetime
@@ -9,7 +10,7 @@ from pathlib import Path
 from typing import Optional, List
 
 import httpx
-from fastapi import FastAPI, HTTPException, Depends, File, UploadFile
+from fastapi import FastAPI, HTTPException, Depends, File, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,6 +26,34 @@ Base = declarative_base()
 WINEAPI_KEY = os.getenv("WINEAPI_KEY", "")
 WINEAPI_BASE = "https://api.wineapi.io"
 WINEAPI_HEADERS = {"X-API-Key": WINEAPI_KEY}
+
+ADMIN_KEY = os.getenv("KELLERLOG_ADMIN_KEY", "")
+if not ADMIN_KEY:
+    ADMIN_KEY = secrets.token_hex(32)
+    print(f"⚠️  KELLERLOG_ADMIN_KEY not set — generated: {ADMIN_KEY}", flush=True)
+
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
+# Magic bytes for supported image formats
+_IMAGE_SIGNATURES = [
+    b'\xff\xd8\xff',           # JPEG
+    b'\x89PNG\r\n\x1a\n',     # PNG
+    b'GIF87a', b'GIF89a',     # GIF
+    b'RIFF',                   # WebP (verify bytes 8-12 == WEBP)
+]
+
+def _valid_image_header(header: bytes) -> bool:
+    for sig in _IMAGE_SIGNATURES:
+        if header[:len(sig)] == sig:
+            if sig == b'RIFF':
+                return len(header) >= 12 and header[8:12] == b'WEBP'
+            return True
+    # HEIC/HEIF: ISO Base Media File Format — ftyp box at offset 4
+    return len(header) >= 8 and header[4:8] == b'ftyp'
+
+def require_auth(x_admin_key: str = Header(default="")):
+    if x_admin_key != ADMIN_KEY:
+        raise HTTPException(status_code=401, detail="Ungültiger Admin-Key")
 
 
 class WineModel(Base):
@@ -106,8 +135,8 @@ app = FastAPI(title="KellerLog API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -306,7 +335,7 @@ def get_wines(db: Session = Depends(get_db)):
 
 
 @app.post("/wines", response_model=WineResponse)
-def create_wine(wine: WineCreate, db: Session = Depends(get_db)):
+def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
     db_wine = WineModel(**wine.model_dump())
     db.add(db_wine)
     db.commit()
@@ -324,7 +353,7 @@ def get_wine(wine_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/wines/{wine_id}", response_model=WineResponse)
-def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get_db)):
+def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
     wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
@@ -338,7 +367,7 @@ def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get
 
 
 @app.delete("/wines/{wine_id}")
-def delete_wine(wine_id: int, db: Session = Depends(get_db)):
+def delete_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
     wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
@@ -384,7 +413,7 @@ def search_library(q: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/library/{entry_id}")
-def delete_library_entry(entry_id: int, db: Session = Depends(get_db)):
+def delete_library_entry(entry_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
     entry = db.query(WineLibrary).filter(WineLibrary.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Eintrag nicht gefunden")
@@ -445,9 +474,13 @@ async def get_wine_details(wineapi_id: str):
 
 
 @app.post("/upload")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Nur Bilddateien erlaubt")
+    header = await file.read(12)
+    file.file.seek(0)
+    if not _valid_image_header(header):
+        raise HTTPException(status_code=400, detail="Ungültiges Bildformat")
     ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
                "image/gif": ".gif", "image/heic": ".jpg"}
     ext = ext_map.get(file.content_type, ".jpg")
@@ -561,7 +594,7 @@ def export_csv(db: Session = Depends(get_db)):
 
 
 @app.post("/import")
-async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_db), _=Depends(require_auth)):
     content = await file.read()
     created = skipped = 0
 

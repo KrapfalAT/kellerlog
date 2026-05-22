@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode } from '$lib/api.js';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getAdminKey, setAdminKey } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
@@ -29,6 +29,7 @@
   let showExport = false;
   let showBranding = false;
   let showMenu = false;
+  let adminKey = '';
   let selectedWine = null;
   let libraryAddWine = null;
   let libraryAddIsNew = false;
@@ -89,6 +90,15 @@
     toastTimeout = setTimeout(() => (toast = ''), 3000);
   }
 
+  function handleApiError(e) {
+    if (e.message === 'UNAUTHORIZED') {
+      showToast($t('toast_unauthorized'));
+      showMenu = true;
+    } else {
+      showToast(e.message);
+    }
+  }
+
   async function handleSave(e) {
     const data = e.detail;
     try {
@@ -104,7 +114,7 @@
       stats = await getStats();
       closeModal();
     } catch (e) {
-      showToast($t('toast_error_save'));
+      handleApiError(e);
     }
   }
 
@@ -116,8 +126,8 @@
       wines = wines.filter(w => w.id !== id);
       stats = await getStats();
       showToast($t('toast_deleted'));
-    } catch {
-      showToast($t('toast_error_delete'));
+    } catch (e) {
+      handleApiError(e);
     }
   }
 
@@ -251,8 +261,13 @@
 
   onMount(() => {
     branding.init();
+    adminKey = getAdminKey();
     load();
   });
+
+  function saveAdminKey() {
+    setAdminKey(adminKey);
+  }
 </script>
 
 <div class="app">
@@ -346,6 +361,18 @@
               <div class="lang-row">
                 <button class="lang-btn" class:lang-active={$lang === 'de'} on:click={() => lang.set('de')}>🇩🇪 Deutsch</button>
                 <button class="lang-btn" class:lang-active={$lang === 'en'} on:click={() => lang.set('en')}>🇬🇧 English</button>
+              </div>
+              <div class="menu-divider"></div>
+              <div class="menu-section-label">{$t('menu_admin_key')}</div>
+              <div class="key-row">
+                <input
+                  type="password"
+                  class="key-input"
+                  bind:value={adminKey}
+                  on:change={saveAdminKey}
+                  placeholder="••••••••••••••••"
+                  autocomplete="off"
+                />
               </div>
             </div>
           {/if}
@@ -783,6 +810,20 @@
     font-weight: 700;
     background: rgba(72, 15, 37, 0.06);
   }
+
+  .key-row { padding: 0 12px 4px; }
+  .key-input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: monospace;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
+  }
+  .key-input:focus { outline: none; border-color: var(--primary); }
 
   /* Main */
   .main {

@@ -13,6 +13,7 @@
   "menu_backup": "Sicherung & Import",
   "menu_branding": "Branding",
   "menu_language": "Sprache",
+  "menu_admin_key": "Admin-Key",
 
   "loading": "Lade KellerLog...",
   "error_connection": "Verbindung zum Server fehlgeschlagen. Läuft das Backend?",
@@ -49,6 +50,7 @@
   "toast_error_delete": "Fehler beim Löschen",
   "toast_barcode_not_found": "Barcode nicht gefunden",
   "toast_error_search": "Fehler beim Suchen",
+  "toast_unauthorized": "Ungültiger Admin-Key — bitte im Menü eintragen",
 
   "confirm_delete": "Wein wirklich löschen?",
 
