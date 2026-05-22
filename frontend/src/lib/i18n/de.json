@@ -170,6 +170,9 @@
   "library_add_inventory": "Zum Inventar",
   "library_add_collection": "In Sammlung",
 
+  "map_unknown": "Unbekannt",
+  "map_empty": "Noch keine Weine mit Herkunftsland im Keller.",
+
   "kiosk_loading": "Lade Weinkarte...",
   "kiosk_no_wines": "Keine Weine in dieser Kategorie.",
   "kiosk_no_results": "Kein Treffer gefunden.",

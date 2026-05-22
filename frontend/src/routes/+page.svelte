@@ -266,7 +266,7 @@
   });
 
   function saveAdminKey() {
-    setAdminKey(adminKey);
+    setAdminKey(adminKey.trim());
   }
 </script>
 
@@ -369,7 +369,7 @@
                   type="password"
                   class="key-input"
                   bind:value={adminKey}
-                  on:change={saveAdminKey}
+                  on:input={saveAdminKey}
                   placeholder="••••••••••••••••"
                   autocomplete="off"
                 />

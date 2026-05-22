@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import 'leaflet/dist/leaflet.css';
+  import { t } from '$lib/stores/i18n.js';
 
   export let wines = [];
 
@@ -281,9 +282,9 @@
           <line x1="8" y1="2" x2="8" y2="18"/>
           <line x1="16" y1="6" x2="16" y2="22"/>
         </svg>
-        Herkunftskarte
+        {$t('nav_map')}
       </div>
-      <button class="close-btn" on:click={() => dispatch('close')} aria-label="Schließen">
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('modal_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -301,11 +302,11 @@
           </span>
         {/each}
         {#if unknownCount > 0}
-          <span class="legend-item unknown">Unbekannt <span class="legend-count">{unknownCount}</span></span>
+          <span class="legend-item unknown">{$t('map_unknown')} <span class="legend-count">{unknownCount}</span></span>
         {/if}
       </div>
     {:else}
-      <p class="empty-map">Noch keine Weine mit Herkunftsland im Keller.</p>
+      <p class="empty-map">{$t('map_empty')}</p>
     {/if}
   </div>
 </div>

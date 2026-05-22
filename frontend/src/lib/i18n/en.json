@@ -170,6 +170,9 @@
   "library_add_inventory": "To inventory",
   "library_add_collection": "Add to collection",
 
+  "map_unknown": "Unknown",
+  "map_empty": "No wines with origin country in the cellar.",
+
   "kiosk_loading": "Loading wine menu...",
   "kiosk_no_wines": "No wines in this category.",
   "kiosk_no_results": "No results found.",

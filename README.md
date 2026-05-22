@@ -4,6 +4,12 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 
 ![KellerLog Banner](frontend/static/logo/kellerlog-banner.png)
 
+## Screenshots
+
+| Collection | Inventory Mode | Wine Details |
+|:---:|:---:|:---:|
+| ![Collection view](docs/screenshots/collection.png) | ![Inventory mode](docs/screenshots/inventory.png) | ![Wine details](docs/screenshots/description.png) |
+
 ## Features
 
 - **Wine collection** — add, edit, and delete wines with photos, tasting notes, ratings, and food pairings

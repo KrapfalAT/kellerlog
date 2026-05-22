@@ -3,7 +3,7 @@ const ADMIN_KEY_STORAGE = 'kellerlog_admin_key';
 
 export const getAdminKey = () => {
   if (typeof localStorage === 'undefined') return '';
-  return localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+  return (localStorage.getItem(ADMIN_KEY_STORAGE) || '').trim();
 };
 export const setAdminKey = (key) => {
   if (typeof localStorage !== 'undefined') localStorage.setItem(ADMIN_KEY_STORAGE, key);
