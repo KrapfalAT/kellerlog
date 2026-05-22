@@ -180,7 +180,6 @@
     width: auto;
     max-width: 80px;
     object-fit: contain;
-    filter: brightness(0) invert(1);
   }
   .app-icon {
     height: 44px;

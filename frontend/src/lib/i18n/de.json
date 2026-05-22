@@ -1,4 +1,5 @@
 {
+  "nav_kiosk": "Kiosk-Modus",
   "nav_library": "Weinbibliothek",
   "nav_map": "Herkunftskarte",
   "nav_inventory": "Inventarisierungsmodus",
@@ -79,6 +80,7 @@
   "detail_pairings": "Passt zu",
   "detail_notes": "Notizen",
   "detail_per_bottle": "pro Flasche",
+  "detail_per_glass": "pro Glas",
 
   "export_title": "Sicherung & Import",
   "export_subtitle": "Sammlung exportieren oder wiederherstellen",
@@ -136,6 +138,7 @@
   "modal_field_notes": "Persönliche Notizen",
   "modal_field_by_glass": "Per Glas verfügbar",
   "modal_field_by_glass_desc": "Im Kiosk als Glaswein anzeigen",
+  "modal_field_price_per_glass": "Preis pro Glas (€)",
   "kiosk_by_glass": "Per Glas",
   "modal_field_photo": "Foto",
   "modal_photo_change": "Foto ändern",

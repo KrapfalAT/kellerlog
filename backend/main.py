@@ -80,6 +80,7 @@ class WineModel(Base):
     description = Column(String, default="")
     wineapi_id = Column(String, default="")
     by_glass = Column(Boolean, default=False)
+    price_per_glass = Column(Float, nullable=True)
     added_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -120,6 +121,7 @@ def _ensure_columns():
         ("description", "TEXT DEFAULT ''"),
         ("wineapi_id", "TEXT DEFAULT ''"),
         ("by_glass", "INTEGER DEFAULT 0"),
+        ("price_per_glass", "REAL"),
     ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.execute(text("PRAGMA table_info(wines)"))}
@@ -176,6 +178,7 @@ class WineCreate(BaseModel):
     description: str = ""
     wineapi_id: str = ""
     by_glass: bool = False
+    price_per_glass: Optional[float] = None
 
 
 class WineUpdate(BaseModel):
@@ -199,6 +202,7 @@ class WineUpdate(BaseModel):
     description: Optional[str] = None
     wineapi_id: Optional[str] = None
     by_glass: Optional[bool] = None
+    price_per_glass: Optional[float] = None
 
 
 class WineResponse(BaseModel):
@@ -223,6 +227,7 @@ class WineResponse(BaseModel):
     description: str
     wineapi_id: str
     by_glass: bool
+    price_per_glass: Optional[float]
     added_at: datetime
 
     model_config = {"from_attributes": True}

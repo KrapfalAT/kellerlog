@@ -15,7 +15,7 @@
     region: '', country: '', type: 'red', alcohol: null,
     rating: null, quantity: 1, notes: '', price: null,
     barcode: '', image_url: '', body: '', acidity: '',
-    pairings: '', description: '', wineapi_id: '', by_glass: false
+    pairings: '', description: '', wineapi_id: '', by_glass: false, price_per_glass: null
   };
 
   function initForm() {
@@ -423,6 +423,13 @@
               <span class="toggle-track" class:on={form.by_glass}><span class="toggle-thumb"></span></span>
             </label>
           </div>
+
+          {#if form.by_glass}
+          <div class="field span-2">
+            <label for="price_per_glass">{$t('modal_field_price_per_glass')}</label>
+            <input id="price_per_glass" type="number" bind:value={form.price_per_glass} placeholder="0.00" step="0.01" min="0" />
+          </div>
+          {/if}
 
           <div class="field span-2">
             <label>{$t('modal_field_photo')}</label>

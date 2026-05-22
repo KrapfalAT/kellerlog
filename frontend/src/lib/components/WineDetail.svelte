@@ -47,6 +47,9 @@
         </div>
       {/if}
       <span class="type-badge type-{wine.type}">{typeLabel[wine.type] || wine.type}</span>
+      {#if wine.by_glass}
+        <span class="glass-badge">{$t('kiosk_by_glass')}</span>
+      {/if}
     </div>
 
     <!-- Details -->
@@ -136,7 +139,12 @@
 
         <div class="footer-row">
           {#if wine.price}
-            <span class="price">{wine.price.toFixed(2)} € {$t('detail_per_bottle')}</span>
+            <span class="price">{wine.price.toFixed(2)} € <span class="price-label">{$t('detail_per_bottle')}</span></span>
+          {/if}
+          {#if wine.by_glass && wine.price_per_glass}
+            <span class="price glass-price">
+              {wine.price_per_glass.toFixed(2)} € <span class="price-label">{$t('detail_per_glass')}</span>
+            </span>
           {/if}
         </div>
       </div>
@@ -217,6 +225,22 @@
   .type-sparkling{ background: var(--sparkling); }
   .type-dessert  { background: var(--dessert); }
   .type-other    { background: var(--other); }
+
+  .glass-badge {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    background: rgba(20, 20, 20, 0.65);
+    backdrop-filter: blur(4px);
+  }
 
   /* ── Detail side ── */
   .detail-side {
@@ -350,9 +374,20 @@
     margin-top: auto;
   }
   .price {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     font-size: 20px;
     font-weight: 700;
     color: var(--primary);
+  }
+  .price-label {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+  .glass-price {
+    font-size: 18px;
   }
   .qty {
     display: flex;

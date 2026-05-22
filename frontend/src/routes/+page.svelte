@@ -293,6 +293,14 @@
           </svg>
         </button>
         <div class="icon-sep"></div>
+        <a class="icon-btn kiosk-btn" href="/kiosk" target="_blank" rel="noopener" title={$t('nav_kiosk')}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </a>
+        <div class="icon-sep"></div>
         <button class="icon-btn" on:click={() => showMap = true} title={$t('nav_map')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
@@ -569,7 +577,6 @@
     width: auto;
     max-width: 80px;
     object-fit: contain;
-    filter: brightness(0) invert(1);
   }
   .app-icon {
     height: 44px;
@@ -657,6 +664,8 @@
     background: rgba(255,255,255,0.18);
     color: white;
   }
+  .kiosk-btn { text-decoration: none; border-radius: 6px; }
+
   .icon-sep {
     width: 1px;
     background: rgba(255,255,255,0.25);

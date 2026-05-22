@@ -1,4 +1,5 @@
 {
+  "nav_kiosk": "Kiosk Mode",
   "nav_library": "Wine Library",
   "nav_map": "Origin Map",
   "nav_inventory": "Inventory Mode",
@@ -79,6 +80,7 @@
   "detail_pairings": "Pairs with",
   "detail_notes": "Notes",
   "detail_per_bottle": "per bottle",
+  "detail_per_glass": "per glass",
 
   "export_title": "Backup & Import",
   "export_subtitle": "Export or restore your collection",
@@ -136,6 +138,7 @@
   "modal_field_notes": "Personal notes",
   "modal_field_by_glass": "Available by the glass",
   "modal_field_by_glass_desc": "Show in kiosk as glass wine",
+  "modal_field_price_per_glass": "Price per glass (€)",
   "kiosk_by_glass": "By the Glass",
   "modal_field_photo": "Photo",
   "modal_photo_change": "Change photo",

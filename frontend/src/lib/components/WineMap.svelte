@@ -82,6 +82,9 @@
     'Sizilien': 'Italy', 'Sicily': 'Italy', 'Lazio': 'Italy',
     'Apulien': 'Italy', 'Puglia': 'Italy', 'Emilia-Romagna': 'Italy',
     'Abruzzo': 'Italy', 'Friuli': 'Italy', 'Umbria': 'Italy', 'Campania': 'Italy',
+    'Calabria': 'Italy', 'Basilicata': 'Italy', 'Molise': 'Italy',
+    'Sardinia': 'Italy', 'Sardinien': 'Italy', 'Marche': 'Italy',
+    'Trentino': 'Italy', 'Alto Adige': 'Italy', 'Südtirol': 'Italy', 'Valle d\'Aosta': 'Italy',
     // French regions
     'Bordeaux': 'France', 'Burgund': 'France', 'Burgundy': 'France',
     'Champagne': 'France', 'Alsace': 'France', 'Elsass': 'France',
@@ -97,6 +100,14 @@
     // Portuguese regions
     'Douro': 'Portugal', 'Alentejo': 'Portugal', 'Vinho Verde': 'Portugal',
   };
+
+  const GEOCACHE_KEY = 'kellerlog_geocache';
+  function loadGeoCache() {
+    try { return JSON.parse(localStorage.getItem(GEOCACHE_KEY) || '{}'); } catch { return {}; }
+  }
+  function saveGeoCache(c) {
+    try { localStorage.setItem(GEOCACHE_KEY, JSON.stringify(c)); } catch {}
+  }
 
   function resolveCountry(name) {
     if (!name) return null;
@@ -250,6 +261,41 @@
       }, 100);
     } else {
       setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    // Geocode unknown locations via Nominatim (results cached in localStorage)
+    const geoCache = loadGeoCache();
+    const unknowns = Object.keys(byLocation).filter(
+      loc => loc !== '__unknown__' && !getRegionCoords(loc)
+    );
+
+    let needsDelay = false;
+    for (const loc of unknowns) {
+      let coords;
+      if (loc in geoCache) {
+        coords = geoCache[loc];
+      } else {
+        if (needsDelay) await new Promise(r => setTimeout(r, 1100));
+        needsDelay = true;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc)}&format=json&limit=1`,
+            { headers: { 'Accept-Language': 'en' } }
+          );
+          const data = await res.json();
+          coords = data[0] ? [parseFloat(data[0].lat), parseFloat(data[0].lon)] : null;
+        } catch {
+          coords = null;
+        }
+        geoCache[loc] = coords;
+        saveGeoCache(geoCache);
+      }
+      if (!coords) continue;
+      const list = byLocation[loc];
+      const icon = makeIcon(L, list.length, 34);
+      L.marker(coords, { icon })
+        .bindPopup(buildPopup(loc, list), { maxWidth: 300 })
+        .addTo(regionLayer);
     }
   });
 
