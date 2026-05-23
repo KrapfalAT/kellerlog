@@ -16,4 +16,6 @@ services:
       - "8080:80"
     depends_on:
       - backend
+    environment:
+      - BACKEND_HOST=backend
     restart: unless-stopped

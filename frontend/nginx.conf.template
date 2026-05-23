@@ -1,0 +1,27 @@
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+
+    client_max_body_size 25m;
+
+    location = /manifest.json {
+        types { }
+        default_type "application/manifest+json";
+        try_files $uri =404;
+    }
+
+    location /api/ {
+        proxy_pass http://${BACKEND_HOST}:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
