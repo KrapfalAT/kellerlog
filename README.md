@@ -21,7 +21,7 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 - **Glass wine mode** — mark wines as available by the glass, with optional per-glass price; filterable in kiosk view
 - **Wine map** — world map showing where your wines come from, with automatic geocoding for unknown regions via Nominatim
 - **Import / Export** — backup and restore your collection as JSON or CSV
-- **Branding** — customize the title, logo, accent color, and dark mode
+- **Branding** — customize the title, logo, accent color, and dark mode; settings are stored server-side and shared across all devices
 - **PWA / installable** — install as a home screen app on mobile and desktop
 - **i18n** — German and English UI
 
@@ -76,7 +76,7 @@ services:
     depends_on:
       - backend
     environment:
-      - BACKEND_HOST=backend
+      - BACKEND_HOST=backend   # must match the backend service name above
     restart: unless-stopped
 ```
 
@@ -141,7 +141,7 @@ The kiosk view at `/kiosk` is publicly accessible without login. Admins can conf
 
 ### Branding
 
-App name, subtitle, accent color, logo, and dark mode are configurable through the UI — hamburger menu → **Branding**. Settings are stored per-browser in localStorage.
+App name, subtitle, accent color, logo, and dark mode are configurable through the UI — hamburger menu → **Branding**. All settings are stored server-side in the database and apply to all users and devices immediately.
 
 ### Data
 
@@ -189,8 +189,8 @@ The backend exposes a REST API at `/api/`. Write endpoints require a Bearer toke
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/settings` | — | Get kiosk settings |
-| `PUT` | `/api/settings` | Admin | Update kiosk settings |
+| `GET` | `/api/settings` | — | Get app & kiosk settings |
+| `PUT` | `/api/settings` | Admin | Update app & kiosk settings |
 
 ## AI Disclaimer
 
