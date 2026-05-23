@@ -5,16 +5,21 @@ import os
 import secrets
 import uuid
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
 import httpx
-from fastapi import FastAPI, HTTPException, Depends, File, Header, UploadFile
+from fastapi import FastAPI, HTTPException, Depends, File, Header, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
+import bcrypt as _bcrypt
+from jose import JWTError, jwt
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text, func, or_
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
@@ -27,12 +32,46 @@ WINEAPI_KEY = os.getenv("WINEAPI_KEY", "")
 WINEAPI_BASE = "https://api.wineapi.io"
 WINEAPI_HEADERS = {"X-API-Key": WINEAPI_KEY}
 
-ADMIN_KEY = os.getenv("KELLERLOG_ADMIN_KEY", "")
-if not ADMIN_KEY:
-    ADMIN_KEY = secrets.token_hex(32)
-    print(f"⚠️  KELLERLOG_ADMIN_KEY not set — generated: {ADMIN_KEY}", flush=True)
-
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
+SECRET_KEY = os.getenv("KELLERLOG_SECRET_KEY", secrets.token_hex(32))
+ALGORITHM = "HS256"
+TOKEN_EXPIRE_DAYS = 30
+
+
+def _hash_password(password: str) -> str:
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
+
+
+def _verify_password(password: str, hashed: str) -> bool:
+    return _bcrypt.checkpw(password.encode(), hashed.encode())
+
+
+def _create_token(user_id: int, role: str) -> str:
+    exp = datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS)
+    return jwt.encode({"sub": str(user_id), "role": role, "exp": exp}, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Ungültiges Token")
+
+
+def require_auth(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Nicht angemeldet")
+    payload = _decode_token(authorization[7:])
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin-Rechte erforderlich")
+    return payload
+
+
+def require_login(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Nicht angemeldet")
+    return _decode_token(authorization[7:])
 
 # Magic bytes for supported image formats
 _IMAGE_SIGNATURES = [
@@ -50,11 +89,6 @@ def _valid_image_header(header: bytes) -> bool:
             return True
     # HEIC/HEIF: ISO Base Media File Format — ftyp box at offset 4
     return len(header) >= 8 and header[4:8] == b'ftyp'
-
-def require_auth(x_admin_key: str = Header(default="")):
-    if x_admin_key != ADMIN_KEY:
-        raise HTTPException(status_code=401, detail="Ungültiger Admin-Key")
-
 
 class WineModel(Base):
     __tablename__ = "wines"
@@ -110,6 +144,27 @@ class WineLibrary(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, default="viewer")  # "admin" or "viewer"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AppSettings(Base):
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    kiosk_enabled = Column(Boolean, default=True)
+    kiosk_title = Column(String, default="Weinkarte")
+    kiosk_subtitle = Column(String, default="Unsere Weinauswahl")
+    kiosk_show_footer = Column(Boolean, default=True)
+    kiosk_show_map = Column(Boolean, default=True)
+
+
 Base.metadata.create_all(bind=engine)
 
 
@@ -132,10 +187,53 @@ def _ensure_columns():
 
 _ensure_columns()
 
+
+def _migrate_settings():
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(app_settings)"))}
+        if "kiosk_show_map" not in existing:
+            conn.execute(text("ALTER TABLE app_settings ADD COLUMN kiosk_show_map INTEGER DEFAULT 1"))
+            conn.commit()
+
+_migrate_settings()
+
+
+def _init_users():
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            username = os.getenv("KELLERLOG_ADMIN_USER", "admin")
+            password = os.getenv("KELLERLOG_ADMIN_PASSWORD", "")
+            if not password:
+                password = secrets.token_urlsafe(12)
+                print(f"⚠️  KELLERLOG_ADMIN_PASSWORD not set — generated password for '{username}': {password}", flush=True)
+            db.add(User(username=username, password_hash=_hash_password(password), role="admin"))
+            db.commit()
+            print(f"✓ Admin user '{username}' created", flush=True)
+    finally:
+        db.close()
+
+_init_users()
+
+
+def _init_settings():
+    db = SessionLocal()
+    try:
+        if not db.get(AppSettings, 1):
+            db.add(AppSettings(id=1))
+            db.commit()
+    finally:
+        db.close()
+
+_init_settings()
+
 IMAGES_DIR = Path("/app/data/images")
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="KellerLog API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -259,6 +357,46 @@ class WineLibraryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Auth schemas ─────────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = "viewer"
+
+class UserUpdate(BaseModel):
+    password: Optional[str] = None
+    role: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    role: str
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class SettingsUpdate(BaseModel):
+    kiosk_enabled: Optional[bool] = None
+    kiosk_title: Optional[str] = None
+    kiosk_subtitle: Optional[str] = None
+    kiosk_show_footer: Optional[bool] = None
+    kiosk_show_map: Optional[bool] = None
+
+
+class SettingsResponse(BaseModel):
+    kiosk_enabled: bool
+    kiosk_title: str
+    kiosk_subtitle: str
+    kiosk_show_footer: bool
+    kiosk_show_map: bool
+    model_config = {"from_attributes": True}
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _wineapi_type(raw: str | None) -> str:
@@ -335,6 +473,98 @@ def _upsert_library(db: Session, data: dict) -> None:
         entry = WineLibrary(**kwargs)
         db.add(entry)
     db.commit()
+
+
+# ── Auth endpoints ───────────────────────────────────────────────────────────
+
+@app.post("/auth/login")
+@limiter.limit("10/minute")
+def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == data.username).first()
+    if not user or not _verify_password(data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Ungültige Anmeldedaten")
+    token = _create_token(user.id, user.role)
+    return {"token": token, "role": user.role, "username": user.username, "id": user.id}
+
+
+@app.get("/auth/me")
+def get_me(payload=Depends(require_login), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=404)
+    return {"id": user.id, "username": user.username, "role": user.role}
+
+
+@app.get("/auth/users", response_model=List[UserResponse])
+def get_users(db: Session = Depends(get_db), _=Depends(require_auth)):
+    return db.query(User).order_by(User.created_at).all()
+
+
+@app.post("/auth/users", response_model=UserResponse)
+def create_user(data: UserCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    if db.query(User).filter(User.username == data.username).first():
+        raise HTTPException(status_code=400, detail="Benutzername bereits vergeben")
+    if data.role not in ("admin", "viewer"):
+        raise HTTPException(status_code=400, detail="Ungültige Rolle")
+    user = User(username=data.username, password_hash=_hash_password(data.password), role=data.role)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.put("/auth/users/{user_id}", response_model=UserResponse)
+def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), payload=Depends(require_auth)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404)
+    if data.role is not None:
+        if data.role not in ("admin", "viewer"):
+            raise HTTPException(status_code=400, detail="Ungültige Rolle")
+        # Prevent removing the last admin
+        if user.role == "admin" and data.role != "admin":
+            admin_count = db.query(User).filter(User.role == "admin").count()
+            if admin_count <= 1:
+                raise HTTPException(status_code=400, detail="Letzter Admin kann nicht degradiert werden")
+        user.role = data.role
+    if data.password:
+        user.password_hash = _hash_password(data.password)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.delete("/auth/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), payload=Depends(require_auth)):
+    if int(payload["sub"]) == user_id:
+        raise HTTPException(status_code=400, detail="Eigenen Account nicht löschbar")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404)
+    if user.role == "admin":
+        admin_count = db.query(User).filter(User.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(status_code=400, detail="Letzter Admin kann nicht gelöscht werden")
+    db.delete(user)
+    db.commit()
+    return {"ok": True}
+
+
+# ── App Settings ──────────────────────────────────────────────────────────────
+
+@app.get("/settings", response_model=SettingsResponse)
+def get_settings(db: Session = Depends(get_db)):
+    return db.get(AppSettings, 1)
+
+
+@app.put("/settings", response_model=SettingsResponse)
+def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    row = db.get(AppSettings, 1)
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(row, field, value)
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 # ── Wine CRUD ─────────────────────────────────────────────────────────────────
@@ -473,7 +703,7 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), _=Depends
 # ── Search & lookup ───────────────────────────────────────────────────────────
 
 @app.get("/search")
-async def search_wines(q: str):
+async def search_wines(q: str, _=Depends(require_login)):
     if not q.strip():
         return []
     if not WINEAPI_KEY:
@@ -509,7 +739,7 @@ async def search_wines(q: str):
 
 
 @app.get("/wine-details/{wineapi_id}")
-async def get_wine_details(wineapi_id: str):
+async def get_wine_details(wineapi_id: str, _=Depends(require_login)):
     if not WINEAPI_KEY:
         raise HTTPException(status_code=503, detail="WINEAPI_KEY nicht konfiguriert")
     async with httpx.AsyncClient(timeout=15.0, headers=WINEAPI_HEADERS) as client:
@@ -540,7 +770,7 @@ async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
 
 
 @app.get("/lookup/{barcode}")
-async def lookup_barcode(barcode: str, db: Session = Depends(get_db)):
+async def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(require_login)):
     # Check local library first
     lib = db.query(WineLibrary).filter(WineLibrary.barcode == barcode).first()
     if lib:
@@ -616,7 +846,7 @@ _EXPORT_FIELDS = [
 
 
 @app.get("/export/json")
-def export_json(db: Session = Depends(get_db)):
+def export_json(db: Session = Depends(get_db), _=Depends(require_login)):
     wines = db.query(WineModel).order_by(WineModel.added_at.desc()).all()
     data = [{f: getattr(w, f, None) for f in _EXPORT_FIELDS} for w in wines]
     return Response(
@@ -627,7 +857,7 @@ def export_json(db: Session = Depends(get_db)):
 
 
 @app.get("/export/csv")
-def export_csv(db: Session = Depends(get_db)):
+def export_csv(db: Session = Depends(get_db), _=Depends(require_login)):
     wines = db.query(WineModel).order_by(WineModel.added_at.desc()).all()
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=_EXPORT_FIELDS)

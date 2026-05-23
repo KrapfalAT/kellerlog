@@ -1,16 +1,72 @@
 const BASE = '/api';
-const ADMIN_KEY_STORAGE = 'kellerlog_admin_key';
+const AUTH_STORAGE = 'kellerlog_auth';
 
-export const getAdminKey = () => {
+function getToken() {
   if (typeof localStorage === 'undefined') return '';
-  return (localStorage.getItem(ADMIN_KEY_STORAGE) || '').trim();
-};
-export const setAdminKey = (key) => {
-  if (typeof localStorage !== 'undefined') localStorage.setItem(ADMIN_KEY_STORAGE, key);
-};
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE);
+    return raw ? JSON.parse(raw).token || '' : '';
+  } catch {
+    return '';
+  }
+}
 
 function authHeaders() {
-  return { 'X-Admin-Key': getAdminKey() };
+  const token = getToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+export async function login(username, password) {
+  const r = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (r.status === 401) throw new Error('INVALID_CREDENTIALS');
+  if (!r.ok) throw new Error('Login fehlgeschlagen');
+  return r.json();
+}
+
+export async function getMe() {
+  const r = await fetch(`${BASE}/auth/me`, { headers: authHeaders() });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler');
+  return r.json();
+}
+
+export async function getUsers() {
+  const r = await fetch(`${BASE}/auth/users`, { headers: authHeaders() });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler beim Laden');
+  return r.json();
+}
+
+export async function createUser(data) {
+  const r = await fetch(`${BASE}/auth/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error((await r.json()).detail || 'Fehler');
+  return r.json();
+}
+
+export async function updateUser(id, data) {
+  const r = await fetch(`${BASE}/auth/users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error((await r.json()).detail || 'Fehler');
+  return r.json();
+}
+
+export async function deleteUser(id) {
+  const r = await fetch(`${BASE}/auth/users/${id}`, { method: 'DELETE', headers: authHeaders() });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error((await r.json()).detail || 'Fehler');
 }
 
 export async function getWines() {
@@ -135,5 +191,22 @@ export async function importWines(file) {
   const r = await fetch(`${BASE}/import`, { method: 'POST', headers: authHeaders(), body: fd });
   if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Import fehlgeschlagen');
+  return r.json();
+}
+
+export async function getSettings() {
+  const r = await fetch(`${BASE}/settings`);
+  if (!r.ok) return null;
+  return r.json();
+}
+
+export async function updateSettings(data) {
+  const r = await fetch(`${BASE}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler beim Speichern');
   return r.json();
 }

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { getWines } from '$lib/api.js';
+  import { getWines, getSettings } from '$lib/api.js';
   import { branding } from '$lib/stores/branding.js';
   import { t } from '$lib/stores/i18n.js';
   import WineCard from '$lib/components/WineCard.svelte';
@@ -9,6 +9,11 @@
 
   let wines = [];
   let loading = true;
+  let kioskEnabled = true;
+  let kioskTitle = 'Weinkarte';
+  let kioskSubtitle = 'Unsere Weinauswahl';
+  let kioskShowFooter = true;
+  let kioskShowMap = true;
   let filterType = 'all';
   let searchQuery = '';
   let showMap = false;
@@ -46,7 +51,15 @@
   onMount(async () => {
     branding.init();
     try {
-      wines = await getWines();
+      const [settings, wineList] = await Promise.all([getSettings(), getWines()]);
+      if (settings) {
+        kioskEnabled = settings.kiosk_enabled;
+        kioskTitle = settings.kiosk_title;
+        kioskSubtitle = settings.kiosk_subtitle;
+        kioskShowFooter = settings.kiosk_show_footer;
+        kioskShowMap = settings.kiosk_show_map;
+      }
+      wines = wineList;
     } finally {
       loading = false;
     }
@@ -54,9 +67,16 @@
 </script>
 
 <svelte:head>
-  <title>{$branding.kioskTitle}</title>
+  <title>{kioskTitle}</title>
 </svelte:head>
 
+{#if !loading && !kioskEnabled}
+  <div class="unavailable">
+    <img src="/logo/kellerlog-icon.svg" alt="KellerLog" class="unavail-icon" />
+    <h2>Weinkarte nicht verfügbar</h2>
+    <p>Die Kiosk-Ansicht ist derzeit deaktiviert.</p>
+  </div>
+{:else}
 <div class="kiosk">
   <header class="kiosk-header">
     <div class="header-inner">
@@ -67,12 +87,13 @@
           <img src="/logo/kellerlog-icon.svg" alt="KellerLog" class="app-icon" />
         {/if}
         <div>
-          <h1>{$branding.kioskTitle}</h1>
-          <p class="subtitle">{$branding.kioskSubtitle}</p>
+          <h1>{kioskTitle}</h1>
+          <p class="subtitle">{kioskSubtitle}</p>
         </div>
       </div>
 
       <div class="header-right">
+        {#if kioskShowMap}
         <button class="map-btn" on:click={() => showMap = true} title={$t('nav_map')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
@@ -81,6 +102,7 @@
           </svg>
           {$t('kiosk_map')}
         </button>
+        {/if}
 
         <div class="header-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -130,7 +152,7 @@
     {/if}
   </main>
 
-  {#if $branding.kioskShowFooter}
+  {#if kioskShowFooter}
     <footer class="kiosk-footer">
       <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">{$branding.title}</a>
     </footer>
@@ -144,8 +166,29 @@
     <WineDetail wine={selectedWine} on:close={() => selectedWine = null} />
   {/if}
 </div>
+{/if}
 
 <style>
+  .unavailable {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--bg);
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px;
+  }
+  .unavail-icon {
+    width: 64px; height: 64px;
+    border-radius: 16px;
+    opacity: 0.4;
+  }
+  .unavailable h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+  .unavailable p { font-size: 14px; }
+
   .kiosk {
     min-height: 100vh;
     display: flex;
