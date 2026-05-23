@@ -98,9 +98,11 @@
         searchResults = [result];
       } else {
         searchResults = [];
+        form = { ...form, barcode };
       }
     } catch {
       searchResults = [];
+      form = { ...form, barcode };
     } finally {
       isSearching = false;
       hasSearched = true;

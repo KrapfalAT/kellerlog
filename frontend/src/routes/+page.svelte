@@ -219,14 +219,13 @@
       if (result) {
         if (!result.barcode) result.barcode = barcode;
         inventoryScanWine = result;
-        inventoryScanIsNew = true;
       } else {
-        showToast($t('toast_barcode_not_found'));
-        showInventoryScanner = true;
+        inventoryScanWine = { name: '', barcode, type: 'red', quantity: 0 };
       }
+      inventoryScanIsNew = true;
     } catch {
-      showToast($t('toast_error_search'));
-      showInventoryScanner = true;
+      inventoryScanWine = { name: '', barcode, type: 'red', quantity: 0 };
+      inventoryScanIsNew = true;
     }
   }
 
@@ -253,10 +252,26 @@
         showToast(`${wine.name}: jetzt ${newQty}×`);
       }
       stats = await getStats();
-    } catch {
-      showToast($t('toast_error_save'));
+    } catch (err) {
+      handleApiError(err);
     }
     showInventoryScanner = true;
+  }
+
+  async function exitInventoryMode() {
+    inventoryMode = false;
+    showInventoryScanner = false;
+    const toDelete = wines.filter(w => w.quantity <= 0);
+    for (const w of toDelete) {
+      try {
+        await deleteWine(w.id);
+      } catch { /* ignore */ }
+    }
+    if (toDelete.length > 0) {
+      wines = wines.filter(w => w.quantity > 0);
+      stats = await getStats();
+      showToast(`${toDelete.length} ${$t('toast_deleted')}`);
+    }
   }
 
   onMount(() => {
@@ -309,7 +324,7 @@
           </svg>
         </button>
         <div class="icon-sep"></div>
-        <button class="icon-btn" class:active={inventoryMode} on:click={() => { inventoryMode = !inventoryMode; if (!inventoryMode) showInventoryScanner = false; }} title={$t('nav_inventory')}>
+        <button class="icon-btn" class:active={inventoryMode} on:click={() => { if (inventoryMode) { exitInventoryMode(); } else { inventoryMode = true; } }} title={$t('nav_inventory')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
           </svg>
@@ -465,7 +480,7 @@
   {#if inventoryMode}
     <div class="inv-bar">
       <span class="inv-label">{$t('inventory_mode_label')}</span>
-      <button class="inv-exit" on:click={() => { inventoryMode = false; showInventoryScanner = false; }}>{$t('inventory_exit')}</button>
+      <button class="inv-exit" on:click={exitInventoryMode}>{$t('inventory_exit')}</button>
     </div>
     <button class="fab fab-scan" on:click={() => showInventoryScanner = true} title="Barcode scannen" aria-label="Barcode scannen">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
