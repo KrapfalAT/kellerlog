@@ -1,18 +1,22 @@
 <script>
   import { onMount } from 'svelte';
   import { version } from '../../package.json';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getAdminKey, setAdminKey, updateLibraryEntry } from '$lib/api.js';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, updateLibraryEntry } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
   import LibraryManager from '$lib/components/LibraryManager.svelte';
   import ExportPanel from '$lib/components/ExportPanel.svelte';
   import BrandingPanel from '$lib/components/BrandingPanel.svelte';
+  import UserManagementPanel from '$lib/components/UserManagementPanel.svelte';
+  import KioskPanel from '$lib/components/KioskPanel.svelte';
   import WineDetail from '$lib/components/WineDetail.svelte';
   import BarcodeScanner from '$lib/components/BarcodeScanner.svelte';
   import InventoryQuickAdd from '$lib/components/InventoryQuickAdd.svelte';
   import { branding } from '$lib/stores/branding.js';
   import { lang, t } from '$lib/stores/i18n.js';
+  import { auth, isAdmin } from '$lib/stores/auth.js';
+  import { goto } from '$app/navigation';
 
   let wines = [];
   let stats = null;
@@ -29,8 +33,9 @@
   let showLibrary = false;
   let showExport = false;
   let showBranding = false;
+  let showUsers = false;
+  let showKiosk = false;
   let showMenu = false;
-  let adminKey = '';
   let selectedWine = null;
   let libraryAddWine = null;
   let libraryAddIsNew = false;
@@ -95,11 +100,16 @@
 
   function handleApiError(e) {
     if (e.message === 'UNAUTHORIZED') {
-      showToast($t('toast_unauthorized'));
-      showMenu = true;
+      auth.logout();
+      goto('/login');
     } else {
       showToast(e.message);
     }
+  }
+
+  function handleLogout() {
+    auth.logout();
+    goto('/login');
   }
 
   async function handleSave(e) {
@@ -307,7 +317,6 @@
 
   onMount(() => {
     branding.init();
-    adminKey = getAdminKey();
     load();
   });
 
@@ -354,12 +363,14 @@
             <line x1="16" y1="6" x2="16" y2="22"/>
           </svg>
         </button>
+        {#if $isAdmin}
         <div class="icon-sep"></div>
         <button class="icon-btn" class:active={inventoryMode} on:click={() => { if (inventoryMode) { exitInventoryMode(); } else { inventoryMode = true; } }} title={$t('nav_inventory')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
           </svg>
         </button>
+        {/if}
       </div>
 
       <div class="header-right">
@@ -410,23 +421,36 @@
                 </svg>
                 {$t('menu_branding')}
               </button>
+              {#if $isAdmin}
+              <button class="menu-item" on:click={() => { showKiosk = true; showMenu = false; }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <path d="M8 21h8M12 17v4"/>
+                </svg>
+                {$t('menu_kiosk_settings')}
+              </button>
+              {/if}
               <div class="menu-divider"></div>
               <div class="menu-section-label">{$t('menu_language')}</div>
               <div class="lang-row">
                 <button class="lang-btn" class:lang-active={$lang === 'de'} on:click={() => lang.set('de')}>🇩🇪 Deutsch</button>
                 <button class="lang-btn" class:lang-active={$lang === 'en'} on:click={() => lang.set('en')}>🇬🇧 English</button>
               </div>
+              {#if $isAdmin}
               <div class="menu-divider"></div>
-              <div class="menu-section-label">{$t('menu_admin_key')}</div>
-              <div class="key-row">
-                <input
-                  type="password"
-                  class="key-input"
-                  bind:value={adminKey}
-                  on:input={saveAdminKey}
-                  placeholder="••••••••••••••••"
-                  autocomplete="off"
-                />
+              <button class="menu-item" on:click={() => { showUsers = true; showMenu = false; }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+                {$t('menu_users')}
+              </button>
+              {/if}
+              <div class="menu-divider"></div>
+              <div class="menu-user-row">
+                <span class="menu-username">{$auth?.username}</span>
+                <button class="menu-logout" on:click={handleLogout}>{$t('menu_logout')}</button>
               </div>
             </div>
           {/if}
@@ -497,7 +521,7 @@
       <p class="result-count">{filteredWines.length} {filteredWines.length !== 1 ? $t('count_plural') : $t('count_singular')}</p>
       <div class="wine-grid">
         {#each filteredWines as wine (wine.id)}
-          <WineCard {wine} {inventoryMode} readonly={inventoryMode} on:select={(e) => selectedWine = e.detail} on:edit={handleEdit} on:delete={handleDelete} on:quantityChange={handleQuantityChange} />
+          <WineCard {wine} {inventoryMode} readonly={!$isAdmin || inventoryMode} on:select={(e) => selectedWine = e.detail} on:edit={handleEdit} on:delete={handleDelete} on:quantityChange={handleQuantityChange} />
         {/each}
       </div>
     {/if}
@@ -523,11 +547,13 @@
       </svg>
     </button>
   {/if}
+  {#if $isAdmin}
   <button class="fab" on:click={openAdd} title={$t('nav_add')} aria-label={$t('nav_add')}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
     </svg>
   </button>
+  {/if}
 
   <!-- Modal -->
   {#if showModal}
@@ -547,6 +573,16 @@
   <!-- Branding -->
   {#if showBranding}
     <BrandingPanel on:close={() => showBranding = false} />
+  {/if}
+
+  <!-- User Management -->
+  {#if showUsers}
+    <UserManagementPanel on:close={() => showUsers = false} />
+  {/if}
+
+  <!-- Kiosk Settings -->
+  {#if showKiosk}
+    <KioskPanel on:close={() => showKiosk = false} />
   {/if}
 
   <!-- Wine detail (image click) -->
@@ -869,19 +905,34 @@
     background: rgba(72, 15, 37, 0.06);
   }
 
-  .key-row { padding: 0 12px 4px; }
-  .key-input {
-    width: 100%;
-    padding: 7px 10px;
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    font-size: 12px;
-    font-family: monospace;
-    background: var(--surface-2);
-    color: var(--text);
-    box-sizing: border-box;
+  .menu-user-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px 8px;
+    gap: 8px;
   }
-  .key-input:focus { outline: none; border-color: var(--primary); }
+  .menu-username {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .menu-logout {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c0392b;
+    background: none;
+    border: 1px solid rgba(192,57,43,0.3);
+    border-radius: 6px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .menu-logout:hover { background: rgba(192,57,43,0.08); }
 
   /* Main */
   .main {

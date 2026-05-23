@@ -6,7 +6,9 @@ services:
       - ./kellerlog:/app/data
     environment:
       - WINEAPI_KEY=${WINEAPI_KEY:-}
-      - KELLERLOG_ADMIN_KEY=${KELLERLOG_ADMIN_KEY:-}
+      - KELLERLOG_SECRET_KEY=${KELLERLOG_SECRET_KEY:?Set KELLERLOG_SECRET_KEY in .env}
+      - KELLERLOG_ADMIN_USER=${KELLERLOG_ADMIN_USER:-admin}
+      - KELLERLOG_ADMIN_PASSWORD=${KELLERLOG_ADMIN_PASSWORD:?Set KELLERLOG_ADMIN_PASSWORD in .env}
     restart: unless-stopped
 
   frontend:
