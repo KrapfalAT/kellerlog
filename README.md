@@ -14,11 +14,13 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 
 - **Wine collection** — add, edit, and delete wines with photos, tasting notes, ratings, and food pairings
 - **Barcode scanner** — scan a wine bottle to auto-fill details via the WineAPI
-- **Inventory mode** — quickly adjust bottle counts with +/− controls
+- **Inventory mode** — quickly adjust bottle counts with +/− controls; wines with zero bottles are removed when you exit
 - **Kiosk view** — a clean, read-only wine list at `/kiosk` for guests or a wall display
-- **Wine map** — world map showing where your wines come from
+- **Glass wine mode** — mark wines as available by the glass, with optional per-glass price; filterable in kiosk view
+- **Wine map** — world map showing where your wines come from, with automatic geocoding for unknown regions via Nominatim
 - **Import / Export** — backup and restore your collection as JSON or CSV
-- **Branding** — customize the title, logo, and accent color
+- **Branding** — customize the title, logo, accent color, and dark mode
+- **PWA / installable** — install as a home screen app on mobile and desktop
 - **i18n** — German and English UI
 
 ## Tech Stack
@@ -45,11 +47,18 @@ cd kellerlog
 cp .env.example .env
 ```
 
-Edit `.env` and add your WineAPI key if you want barcode lookup (optional):
+Edit `.env` before the first start:
 
 ```env
+# Required: protects all write operations (add/edit/delete wines, upload, import)
+# Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+KELLERLOG_ADMIN_KEY=your_admin_key_here
+
+# Optional: enables barcode lookup — get a key at https://wineapi.io
 WINEAPI_KEY=your_wineapi_key_here
 ```
+
+> If `KELLERLOG_ADMIN_KEY` is not set, a random key is generated at startup and printed to the container logs. Set it explicitly so the key survives container restarts.
 
 Start the app:
 
@@ -72,11 +81,12 @@ docker compose up -d --build
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| `KELLERLOG_ADMIN_KEY` | Recommended | Protects all write operations. Auto-generated at startup if not set (printed to logs). |
 | `WINEAPI_KEY` | No | API key for barcode lookup ([wineapi.io](https://wineapi.io)) |
 
 ### Branding
 
-All branding settings (app name, subtitle, accent color, logo) are configurable through the UI — click the palette icon in the top-right menu. Settings are stored per-browser in localStorage.
+All branding settings (app name, subtitle, accent color, logo, dark mode) are configurable through the UI — click the palette icon in the top-right menu. Settings are stored per-browser in localStorage.
 
 ### Data
 
