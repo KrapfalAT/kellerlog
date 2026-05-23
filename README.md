@@ -23,6 +23,17 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 - **PWA / installable** — install as a home screen app on mobile and desktop
 - **i18n** — German and English UI
 
+## Docker Images
+
+Pre-built images are published to GitHub Container Registry on every release:
+
+| Image | Tags |
+|-------|------|
+| `ghcr.io/krapfalat/kellerlog-frontend` | `latest` (release), `edge` (main) |
+| `ghcr.io/krapfalat/kellerlog-backend` | `latest` (release), `edge` (main) |
+
+Both images are built for `linux/amd64` and `linux/arm64`.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -60,19 +71,22 @@ WINEAPI_KEY=your_wineapi_key_here
 
 > If `KELLERLOG_ADMIN_KEY` is not set, a random key is generated at startup and printed to the container logs. Set it explicitly so the key survives container restarts.
 
-Start the app:
+Pull the pre-built images and start:
 
 ```bash
+docker compose pull
 docker compose up -d
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
 
+> **Build locally instead:** comment out the `image:` lines and uncomment the `build:` lines in `docker-compose.yml`, then run `docker compose up -d --build`.
+
 ### Updating
 
 ```bash
 docker compose pull
-docker compose up -d --build
+docker compose up -d
 ```
 
 ## Configuration
