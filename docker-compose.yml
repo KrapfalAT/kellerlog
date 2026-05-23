@@ -1,6 +1,7 @@
 services:
   backend:
-    build: ./backend
+    image: ghcr.io/krapfalat/kellerlog-backend:latest
+    # build: ./backend
     volumes:
       - ./kellerlog:/app/data
     environment:
@@ -9,7 +10,8 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    image: ghcr.io/krapfalat/kellerlog-frontend:latest
+    # build: ./frontend
     ports:
       - "8080:80"
     depends_on:

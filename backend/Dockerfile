@@ -11,4 +11,5 @@ COPY . .
 
 RUN mkdir -p /app/data
 
+LABEL org.opencontainers.image.source=https://github.com/KrapfalAT/kellerlog
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
