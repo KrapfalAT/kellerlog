@@ -163,6 +163,11 @@ class AppSettings(Base):
     kiosk_subtitle = Column(String, default="Unsere Weinauswahl")
     kiosk_show_footer = Column(Boolean, default=True)
     kiosk_show_map = Column(Boolean, default=True)
+    primary_color = Column(String, default="#480f25")
+    dark_mode = Column(Boolean, default=False)
+    app_title = Column(String, default="KellerLog")
+    app_subtitle = Column(String, default="Meine Weinsammlung")
+    logo_url = Column(String, default="")
 
 
 Base.metadata.create_all(bind=engine)
@@ -189,11 +194,20 @@ _ensure_columns()
 
 
 def _migrate_settings():
+    new_cols = [
+        ("kiosk_show_map", "INTEGER DEFAULT 1"),
+        ("primary_color",  "TEXT DEFAULT '#480f25'"),
+        ("dark_mode",      "INTEGER DEFAULT 0"),
+        ("app_title",      "TEXT DEFAULT 'KellerLog'"),
+        ("app_subtitle",   "TEXT DEFAULT 'Meine Weinsammlung'"),
+        ("logo_url",       "TEXT DEFAULT ''"),
+    ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.execute(text("PRAGMA table_info(app_settings)"))}
-        if "kiosk_show_map" not in existing:
-            conn.execute(text("ALTER TABLE app_settings ADD COLUMN kiosk_show_map INTEGER DEFAULT 1"))
-            conn.commit()
+        for col_name, col_def in new_cols:
+            if col_name not in existing:
+                conn.execute(text(f"ALTER TABLE app_settings ADD COLUMN {col_name} {col_def}"))
+        conn.commit()
 
 _migrate_settings()
 
@@ -386,6 +400,11 @@ class SettingsUpdate(BaseModel):
     kiosk_subtitle: Optional[str] = None
     kiosk_show_footer: Optional[bool] = None
     kiosk_show_map: Optional[bool] = None
+    primary_color: Optional[str] = None
+    dark_mode: Optional[bool] = None
+    app_title: Optional[str] = None
+    app_subtitle: Optional[str] = None
+    logo_url: Optional[str] = None
 
 
 class SettingsResponse(BaseModel):
@@ -394,6 +413,11 @@ class SettingsResponse(BaseModel):
     kiosk_subtitle: str
     kiosk_show_footer: bool
     kiosk_show_map: bool
+    primary_color: str
+    dark_mode: bool
+    app_title: str
+    app_subtitle: str
+    logo_url: str
     model_config = {"from_attributes": True}
 
 

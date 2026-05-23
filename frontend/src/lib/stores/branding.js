@@ -1,15 +1,13 @@
 import { writable } from 'svelte/store';
+import { getSettings, updateSettings } from '$lib/api.js';
 
-const KEY = 'kellerlog_branding';
+const CACHE_KEY = 'kellerlog_branding_cache';
 
 export const DEFAULTS = {
   primaryColor: '#480f25',
   darkMode: false,
   title: 'KellerLog',
   subtitle: 'Meine Weinsammlung',
-  kioskTitle: 'Weinkarte',
-  kioskSubtitle: 'Unsere Weinauswahl',
-  kioskShowFooter: true,
   logoUrl: '',
 };
 
@@ -55,37 +53,90 @@ export function applyBranding(b) {
   root.classList.toggle('dark', !!b.darkMode);
 }
 
-function load() {
+function fromSettings(s) {
+  return {
+    primaryColor: s.primary_color ?? DEFAULTS.primaryColor,
+    darkMode:     s.dark_mode     ?? DEFAULTS.darkMode,
+    title:        s.app_title     ?? DEFAULTS.title,
+    subtitle:     s.app_subtitle  ?? DEFAULTS.subtitle,
+    logoUrl:      s.logo_url      ?? DEFAULTS.logoUrl,
+  };
+}
+
+function toSettings(b) {
+  return {
+    primary_color: b.primaryColor,
+    dark_mode:     b.darkMode,
+    app_title:     b.title,
+    app_subtitle:  b.subtitle,
+    logo_url:      b.logoUrl,
+  };
+}
+
+function loadCache() {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(CACHE_KEY);
     return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
   } catch {
     return { ...DEFAULTS };
   }
 }
 
+function saveCache(b) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(b)); } catch { }
+}
+
+let _debounceTimer;
+
 function createBrandingStore() {
   const { subscribe, set, update } = writable({ ...DEFAULTS });
 
   return {
     subscribe,
-    init() {
-      const stored = load();
-      set(stored);
-      applyBranding(stored);
+
+    async init() {
+      // Fast paint from cache
+      const cached = loadCache();
+      set(cached);
+      applyBranding(cached);
+
+      // Authoritative values from server
+      try {
+        const s = await getSettings();
+        if (s) {
+          const fromServer = fromSettings(s);
+          saveCache(fromServer);
+          set(fromServer);
+          applyBranding(fromServer);
+        }
+      } catch {
+        // keep cache if offline
+      }
     },
+
     save(values) {
-      update(s => {
-        const next = { ...s, ...values };
-        try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { }
+      update(current => {
+        const next = { ...current, ...values };
+        saveCache(next);
         applyBranding(next);
+
+        // Debounce API writes — avoid hammering on every keypress
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => {
+          updateSettings(toSettings(next)).catch(() => {});
+        }, 500);
+
         return next;
       });
     },
-    reset() {
-      try { localStorage.removeItem(KEY); } catch { }
+
+    async reset() {
+      try { localStorage.removeItem(CACHE_KEY); } catch { }
       set({ ...DEFAULTS });
       applyBranding(DEFAULTS);
+      try {
+        await updateSettings(toSettings(DEFAULTS));
+      } catch { }
     },
   };
 }

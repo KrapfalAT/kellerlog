@@ -49,20 +49,21 @@
     });
 
   onMount(async () => {
-    branding.init();
     try {
       const [settings, wineList] = await Promise.all([getSettings(), getWines()]);
       if (settings) {
-        kioskEnabled = settings.kiosk_enabled;
-        kioskTitle = settings.kiosk_title;
-        kioskSubtitle = settings.kiosk_subtitle;
+        kioskEnabled    = settings.kiosk_enabled;
+        kioskTitle      = settings.kiosk_title;
+        kioskSubtitle   = settings.kiosk_subtitle;
         kioskShowFooter = settings.kiosk_show_footer;
-        kioskShowMap = settings.kiosk_show_map;
+        kioskShowMap    = settings.kiosk_show_map;
       }
       wines = wineList;
     } finally {
       loading = false;
     }
+    // branding (color, dark mode, logo) from same settings endpoint
+    branding.init();
   });
 </script>
 

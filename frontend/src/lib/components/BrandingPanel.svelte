@@ -10,9 +10,6 @@
   let color        = $branding.primaryColor;
   let title        = $branding.title;
   let subtitle     = $branding.subtitle;
-  let kioskTitle      = $branding.kioskTitle;
-  let kioskSubtitle   = $branding.kioskSubtitle;
-  let kioskShowFooter = $branding.kioskShowFooter ?? true;
   let logoUrl         = $branding.logoUrl;
   let uploadingLogo = false;
   let logoInput;
@@ -34,9 +31,6 @@
 
   function onTitle()         { branding.save({ title }); }
   function onSubtitle()      { branding.save({ subtitle }); }
-  function onKioskTitle()      { branding.save({ kioskTitle }); }
-  function onKioskSubtitle()   { branding.save({ kioskSubtitle }); }
-  function onKioskShowFooter() { branding.save({ kioskShowFooter }); }
 
   async function handleLogoUpload(e) {
     const file = e.target.files?.[0];
@@ -61,9 +55,6 @@
     color         = DEFAULTS.primaryColor;
     title         = DEFAULTS.title;
     subtitle      = DEFAULTS.subtitle;
-    kioskTitle      = DEFAULTS.kioskTitle;
-    kioskSubtitle   = DEFAULTS.kioskSubtitle;
-    kioskShowFooter = DEFAULTS.kioskShowFooter;
     logoUrl         = DEFAULTS.logoUrl;
     branding.reset();
   }
@@ -174,30 +165,6 @@
           <label>{$t('branding_label_subtitle')}</label>
           <input type="text" bind:value={subtitle} on:input={onSubtitle} placeholder="Meine Weinsammlung" maxlength="60" />
         </div>
-      </section>
-
-      <div class="divider"></div>
-
-      <!-- Kiosk Texts -->
-      <section class="section">
-        <div class="section-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          {$t('branding_texts_kiosk')}
-        </div>
-        <p class="desc">{$t('branding_kiosk_hint')}</p>
-        <div class="field">
-          <label>{$t('branding_label_title')}</label>
-          <input type="text" bind:value={kioskTitle} on:input={onKioskTitle} placeholder="Weinkarte" maxlength="40" />
-        </div>
-        <div class="field">
-          <label>{$t('branding_label_subtitle')}</label>
-          <input type="text" bind:value={kioskSubtitle} on:input={onKioskSubtitle} placeholder="Unsere Weinauswahl" maxlength="60" />
-        </div>
-        <label class="toggle-row">
-          <span>{$t('branding_kiosk_footer')}</span>
-          <input type="checkbox" bind:checked={kioskShowFooter} on:change={onKioskShowFooter} class="toggle-input" />
-          <span class="toggle-track" class:on={kioskShowFooter}><span class="toggle-thumb"></span></span>
-        </label>
       </section>
 
       <div class="divider"></div>
