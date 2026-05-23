@@ -422,6 +422,44 @@ def search_library(q: str, db: Session = Depends(get_db)):
     ]
 
 
+@app.put("/library/{entry_id}")
+def update_library_entry(entry_id: int, data: WineUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    entry = db.query(WineLibrary).filter(WineLibrary.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Eintrag nicht gefunden")
+
+    lib_fields = ['name', 'producer', 'vintage', 'grape', 'region', 'country', 'type',
+                  'alcohol', 'rating', 'notes', 'price', 'barcode', 'image_url',
+                  'body', 'acidity', 'pairings', 'description']
+    for field in lib_fields:
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(entry, field, val)
+    entry.updated_at = datetime.utcnow()
+
+    # Propagate to matching wines (skip quantity / glass fields)
+    propagate_fields = ['name', 'producer', 'vintage', 'grape', 'region', 'country',
+                        'type', 'alcohol', 'rating', 'notes', 'price', 'image_url',
+                        'body', 'acidity', 'pairings', 'description']
+    matched = []
+    if entry.barcode:
+        matched = db.query(WineModel).filter(WineModel.barcode == entry.barcode).all()
+    if not matched and entry.wineapi_id:
+        matched = db.query(WineModel).filter(WineModel.wineapi_id == entry.wineapi_id).all()
+    if not matched and entry.name:
+        matched = db.query(WineModel).filter(
+            func.lower(WineModel.name) == entry.name.lower()
+        ).all()
+    for wine in matched:
+        for field in propagate_fields:
+            val = getattr(data, field, None)
+            if val is not None:
+                setattr(wine, field, val)
+
+    db.commit()
+    return {"ok": True, "updated_wines": len(matched)}
+
+
 @app.delete("/library/{entry_id}")
 def delete_library_entry(entry_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
     entry = db.query(WineLibrary).filter(WineLibrary.id == entry_id).first()

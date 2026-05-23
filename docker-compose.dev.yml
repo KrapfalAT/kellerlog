@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: ./backend
+    volumes:
+      - ./kellerlog:/app/data
+    environment:
+      - WINEAPI_KEY=${WINEAPI_KEY:-}
+      - KELLERLOG_ADMIN_KEY=${KELLERLOG_ADMIN_KEY:-}
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    environment:
+      - BACKEND_HOST=backend
+    restart: unless-stopped

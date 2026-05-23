@@ -98,6 +98,17 @@ export async function getLibrary() {
   return r.json();
 }
 
+export async function updateLibraryEntry(id, data) {
+  const r = await fetch(`${BASE}/library/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler beim Aktualisieren');
+  return r.json();
+}
+
 export async function deleteLibraryEntry(id) {
   const r = await fetch(`${BASE}/library/${id}`, { method: 'DELETE', headers: authHeaders() });
   if (r.status === 401) throw new Error('UNAUTHORIZED');

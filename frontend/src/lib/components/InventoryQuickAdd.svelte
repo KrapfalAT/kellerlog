@@ -5,6 +5,7 @@
 
   export let wine;
   export let isNew = false;
+  export let fromLibrary = false;
 
   const dispatch = createEventDispatcher();
 
@@ -73,29 +74,42 @@
     <div class="handle"></div>
 
     <!-- Wine header row -->
-    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
     <div class="wine-header">
-      <div class="wine-thumb" on:click={() => photoInput.click()} title="Foto aufnehmen">
-        {#if uploading}
-          <div class="thumb-loading"><div class="spinner-sm"></div></div>
-        {:else if localImage}
+      {#if !fromLibrary}
+        <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+        <div class="wine-thumb" on:click={() => photoInput.click()} title="Foto aufnehmen">
+          {#if uploading}
+            <div class="thumb-loading"><div class="spinner-sm"></div></div>
+          {:else if localImage}
+            <img src={localImage} alt={localName} />
+          {:else}
+            <div class="thumb-placeholder">🍷</div>
+          {/if}
+          {#if !uploading}
+            <div class="thumb-cam">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+          {/if}
+        </div>
+        <input type="file" accept="image/*" capture="environment" bind:this={photoInput} on:change={handlePhoto} style="display:none" />
+      {:else if localImage}
+        <div class="wine-thumb">
           <img src={localImage} alt={localName} />
-        {:else}
-          <div class="thumb-placeholder">🍷</div>
-        {/if}
-        {#if !uploading}
-          <div class="thumb-cam">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-          </div>
-        {/if}
-      </div>
-      <input type="file" accept="image/*" capture="environment" bind:this={photoInput} on:change={handlePhoto} style="display:none" />
+        </div>
+      {:else}
+        <div class="wine-thumb"><div class="thumb-placeholder">🍷</div></div>
+      {/if}
 
       <div class="wine-meta">
-        <input class="name-input" bind:value={localName} placeholder={$t('inv_wine_name')} />
+        {#if fromLibrary}
+          <span class="lib-name">{localName}</span>
+          {#if localProducer}<span class="lib-sub">{localProducer}{localVintage ? ` · ${localVintage}` : ''}</span>{/if}
+        {:else}
+          <input class="name-input" bind:value={localName} placeholder={$t('inv_wine_name')} />
+        {/if}
         {#if uploadError}
           <span class="upload-err">{$t('inv_upload_error')}</span>
         {:else if !isNew}
@@ -106,7 +120,8 @@
       </div>
     </div>
 
-    <!-- Editable fields -->
+    <!-- Editable fields (hidden in library mode) -->
+    {#if !fromLibrary}
     <div class="fields">
       <div class="field-row">
         <div class="field">
@@ -133,6 +148,7 @@
         </div>
       </div>
     </div>
+    {/if}
 
     <!-- Qty strip -->
     <div class="qty-strip">
@@ -269,6 +285,16 @@
   .name-input:focus {
     outline: none;
     border-bottom-color: var(--primary);
+  }
+
+  .lib-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .lib-sub {
+    font-size: 12px;
+    color: var(--text-muted);
   }
 
   .stock-info {

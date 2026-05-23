@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getAdminKey, setAdminKey } from '$lib/api.js';
+  import { version } from '../../package.json';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getAdminKey, setAdminKey, updateLibraryEntry } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
@@ -33,6 +34,8 @@
   let selectedWine = null;
   let libraryAddWine = null;
   let libraryAddIsNew = false;
+  let libraryAddFromLibrary = false;
+  let editingLibraryId = null;
   let inventoryMode = false;
   let showInventoryScanner = false;
   let inventoryScanWine = null;
@@ -102,6 +105,16 @@
   async function handleSave(e) {
     const data = e.detail;
     try {
+      if (editingLibraryId) {
+        const result = await updateLibraryEntry(editingLibraryId, data);
+        if (result.updated_wines > 0) {
+          wines = await getWines();
+          stats = await getStats();
+        }
+        showToast(`Bibliothek aktualisiert${result.updated_wines > 0 ? ` · ${result.updated_wines} Wein${result.updated_wines !== 1 ? 'e' : ''} aktualisiert` : ''}`);
+        closeModal();
+        return;
+      }
       if (editingWine) {
         const updated = await updateWine(editingWine.id, data);
         wines = wines.map(w => w.id === updated.id ? updated : w);
@@ -146,6 +159,7 @@
     editingWine = null;
     libraryPrefill = null;
     modalHideStock = false;
+    editingLibraryId = null;
   }
 
   function handleLibrarySelect(e) {
@@ -163,6 +177,23 @@
     );
     libraryAddWine = existing || entry;
     libraryAddIsNew = !existing;
+    libraryAddFromLibrary = true;
+  }
+
+  function handleLibraryEdit(e) {
+    editingLibraryId = e.detail.id;
+    libraryPrefill = e.detail;
+    showLibrary = false;
+    showModal = true;
+  }
+
+  function handleLibraryDuplicate(e) {
+    const { id: _id, ...copy } = e.detail;
+    libraryPrefill = copy;
+    editingWine = null;
+    editingLibraryId = null;
+    showLibrary = false;
+    showModal = true;
   }
 
   async function handleLibraryQuickAdd(e) {
@@ -474,6 +505,7 @@
 
   <footer class="footer">
     <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">KellerLog</a>
+    <a class="footer-version" href="https://github.com/KrapfalAT/kellerlog/releases" target="_blank" rel="noopener">v{version}</a>
   </footer>
 
   <!-- FAB -->
@@ -531,14 +563,16 @@
       on:close={() => showLibrary = false}
       on:selectEntry={handleLibrarySelect}
       on:addToInventory={handleLibraryAddToInventory}
+      on:editEntry={handleLibraryEdit}
+      on:duplicateEntry={handleLibraryDuplicate}
     />
   {/if}
 
   <!-- Library quick-add -->
   {#if libraryAddWine}
-    <InventoryQuickAdd wine={libraryAddWine} isNew={libraryAddIsNew}
+    <InventoryQuickAdd wine={libraryAddWine} isNew={libraryAddIsNew} fromLibrary={libraryAddFromLibrary}
       on:confirm={handleLibraryQuickAdd}
-      on:cancel={() => libraryAddWine = null}
+      on:cancel={() => { libraryAddWine = null; libraryAddFromLibrary = false; }}
     />
   {/if}
 
@@ -873,6 +907,14 @@
     text-decoration: none;
     transition: color 0.15s;
   }
+  .footer-version {
+    margin-left: 8px;
+    opacity: 0.5;
+    color: inherit;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .footer-version:hover { opacity: 1; }
   .footer-link:hover { color: var(--primary); }
 
   /* Controls */

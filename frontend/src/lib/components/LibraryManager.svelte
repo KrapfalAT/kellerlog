@@ -127,6 +127,25 @@
                 </svg>
               </button>
               <button
+                class="icon-action-btn"
+                title="Duplizieren"
+                on:click|stopPropagation={() => dispatch('duplicateEntry', entry)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+              </button>
+              <button
+                class="icon-action-btn"
+                title="Bearbeiten"
+                on:click|stopPropagation={() => dispatch('editEntry', entry)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <button
                 class="delete-btn"
                 title="Aus Bibliothek entfernen"
                 on:click|stopPropagation={() => handleDelete(entry.id)}
@@ -381,6 +400,24 @@
   .add-btn:hover {
     background: rgba(44, 122, 75, 0.16);
     border-color: rgba(44, 122, 75, 0.6);
+  }
+
+  .icon-action-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .icon-action-btn:hover {
+    color: var(--primary);
+    background: rgba(123, 29, 63, 0.08);
   }
 
   .delete-btn {
