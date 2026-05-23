@@ -52,13 +52,29 @@ Both images are built for `linux/amd64` and `linux/arm64`.
 
 ### Installation
 
-```bash
-git clone https://github.com/KrapfalAT/kellerlog.git
-cd kellerlog
-cp .env.example .env
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  backend:
+    image: ghcr.io/krapfalat/kellerlog-backend:latest
+    volumes:
+      - ./kellerlog:/app/data
+    environment:
+      - KELLERLOG_ADMIN_KEY=${KELLERLOG_ADMIN_KEY:-}
+      - WINEAPI_KEY=${WINEAPI_KEY:-}
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/krapfalat/kellerlog-frontend:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 ```
 
-Edit `.env` before the first start:
+Create a `.env` in the same directory:
 
 ```env
 # Required: protects all write operations (add/edit/delete wines, upload, import)
@@ -71,16 +87,13 @@ WINEAPI_KEY=your_wineapi_key_here
 
 > If `KELLERLOG_ADMIN_KEY` is not set, a random key is generated at startup and printed to the container logs. Set it explicitly so the key survives container restarts.
 
-Pull the pre-built images and start:
+Start:
 
 ```bash
-docker compose pull
 docker compose up -d
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
-
-> **Build locally instead:** comment out the `image:` lines and uncomment the `build:` lines in `docker-compose.yml`, then run `docker compose up -d --build`.
 
 ### Updating
 
