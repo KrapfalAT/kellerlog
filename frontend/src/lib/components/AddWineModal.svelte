@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import { searchWines, lookupBarcode, getWineDetails, uploadImage, searchLibrary } from '$lib/api.js';
+  import { lookupBarcode, uploadImage } from '$lib/api.js';
   import { t, lang } from '$lib/stores/i18n.js';
   import BarcodeScanner from './BarcodeScanner.svelte';
 
@@ -31,13 +31,6 @@
 
   let form = initForm();
   let customValues = wine?.custom_values ? { ...wine.custom_values } : {};
-  let searchInput = '';
-  let searchResults = [];
-  let isSearching = false;
-  let isLoadingDetails = false;
-  let hasSearched = false;
-  let apiUnavailable = false;
-  let searchTimeout;
   let error = '';
   let saving = false;
   let showScanner = false;
@@ -53,121 +46,17 @@
     { value: 'other',    label: $t('type_other') },
   ];
 
-  function handleSearchInput(event) {
-    clearTimeout(searchTimeout);
-    const q = (event?.target?.value ?? searchInput).trim();
-    if (!q) { searchResults = []; hasSearched = false; apiUnavailable = false; return; }
-
-    // Barcode lookup: 8–13 Ziffern
-    if (/^\d{8,13}$/.test(q)) {
-      searchTimeout = setTimeout(() => doBarcodeLookup(q), 400);
-    } else if (q.length >= 2) {
-      searchTimeout = setTimeout(() => doSearch(q), 600);
-    }
-  }
-
-  async function doSearch(q) {
-    isSearching = true;
-    hasSearched = false;
-    apiUnavailable = false;
-
-    const [libraryResult, apiResult] = await Promise.allSettled([
-      searchLibrary(q),
-      searchWines(q),
-    ]);
-
-    const local = libraryResult.status === 'fulfilled' ? libraryResult.value : [];
-    let api = [];
-    if (apiResult.status === 'fulfilled') {
-      api = apiResult.value;
-    } else if (apiResult.reason?.message === 'API_UNAVAILABLE') {
-      apiUnavailable = true;
-    }
-
-    const localKeys = new Set(local.map(r => (r.name + '|' + (r.producer || '')).toLowerCase()));
-    searchResults = [...local, ...api.filter(r => !localKeys.has((r.name + '|' + (r.producer || '')).toLowerCase()))];
-    isSearching = false;
-    hasSearched = true;
-  }
-
-  async function doBarcodeLookup(barcode) {
-    isSearching = true;
-    hasSearched = false;
-    apiUnavailable = false;
-    try {
-      const result = await lookupBarcode(barcode);
-      if (result) {
-        if (!result.barcode) result.barcode = barcode;
-        searchResults = [result];
-      } else {
-        searchResults = [];
-        form = { ...form, barcode };
-      }
-    } catch {
-      searchResults = [];
-      form = { ...form, barcode };
-    } finally {
-      isSearching = false;
-      hasSearched = true;
-    }
-  }
-
-  async function selectResult(result) {
-    if (result.source === 'local') {
-      const { id, source, saved_at, updated_at, ...wineData } = result;
-      form = { ...emptyForm, ...wineData, quantity: form.quantity || 1 };
-      searchResults = [];
-      searchInput = '';
-      return;
-    }
-
-    form = {
-      ...form,
-      name: result.name || form.name,
-      producer: result.producer || form.producer,
-      type: result.type || form.type,
-      region: result.region || form.region,
-      country: result.country || form.country,
-      rating: result.rating ?? form.rating,
-      image_url: result.image_url || form.image_url,
-      vintage: result.vintage ?? form.vintage,
-      wineapi_id: result.wineapi_id || form.wineapi_id,
-    };
-    if (result.barcode) form.barcode = result.barcode;
-    searchResults = [];
-    searchInput = '';
-
-    if (result.wineapi_id) {
-      isLoadingDetails = true;
-      try {
-        const details = await getWineDetails(result.wineapi_id);
-        if (details) {
-          form = {
-            ...form,
-            grape: details.grape || form.grape,
-            alcohol: details.alcohol ?? form.alcohol,
-            body: details.body || form.body,
-            acidity: details.acidity || form.acidity,
-            pairings: details.pairings || form.pairings,
-            description: details.description || form.description,
-            image_url: details.image_url || form.image_url,
-            rating: details.rating ?? form.rating,
-            wineapi_id: details.wineapi_id || form.wineapi_id,
-          };
-        }
-      } catch {
-        // Details not critical — basic data is already set
-      } finally {
-        isLoadingDetails = false;
-      }
-    }
-  }
-
-  function handleScan(event) {
+  async function handleScan(event) {
     showScanner = false;
     const barcode = event.detail;
-    searchInput = barcode;
-    doBarcodeLookup(barcode);
+    form = { ...form, barcode };
+    try {
+      const result = await lookupBarcode(barcode);
+      if (result?.source === 'local') {
+        const { id, source, saved_at, updated_at, ...data } = result;
+        form = { ...form, ...data };
+      }
+    } catch { /* barcode is set; ignore lookup failure */ }
   }
 
   function setRating(n) {
@@ -234,26 +123,17 @@
     </header>
 
     <div class="modal-body">
-      <!-- API Search -->
+      <!-- Barcode -->
       <div class="search-section">
-        <label class="field-label" for="api-search">{$t('modal_auto_search')}</label>
+        <label class="field-label" for="barcode-input">{$t('modal_auto_search')}</label>
         <div class="search-row">
-          <div class="search-input-wrap">
-            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              type="text"
-              id="api-search"
-              class="search-input"
-              placeholder={$t('modal_search_placeholder')}
-              bind:value={searchInput}
-              on:input={handleSearchInput}
-            />
-            {#if isSearching}
-              <div class="spinner"></div>
-            {/if}
-          </div>
+          <input
+            type="text"
+            id="barcode-input"
+            class="search-input"
+            placeholder={$t('modal_search_placeholder')}
+            bind:value={form.barcode}
+          />
           <button class="btn-scan" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
@@ -261,47 +141,7 @@
             </svg>
           </button>
         </div>
-
-        {#if searchResults.length > 0}
-          <ul class="results">
-            {#each searchResults as result}
-              <li>
-                <!-- svelte-ignore a11y-click-events-have-key-events -->
-                <button class="result-item" class:local={result.source === 'local'} on:click={() => selectResult(result)}>
-                  {#if result.image_url}
-                    <img src={result.image_url} alt="" class="result-img" />
-                  {:else}
-                    <div class="result-img-placeholder">🍷</div>
-                  {/if}
-                  <div class="result-info">
-                    <div class="result-title">
-                      <strong>{result.name}</strong>
-                      {#if result.source === 'local'}
-                        <span class="local-badge">{$t('modal_local_saved')}</span>
-                      {/if}
-                    </div>
-                    {#if result.producer}<span>{result.producer}</span>{/if}
-                    <span class="result-meta">{result.type}{result.country ? ' · ' + result.country : ''}</span>
-                  </div>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        {:else if hasSearched && !isSearching && searchInput.trim().length >= 2}
-          {#if apiUnavailable}
-            <p class="no-results api-warn">⚠ {$t('modal_api_warn')}</p>
-          {:else}
-            <p class="no-results">{$t('modal_not_found')}</p>
-          {/if}
-        {/if}
       </div>
-
-      {#if isLoadingDetails}
-        <div class="loading-details">
-          <div class="spinner-sm"></div>
-          <span>{$t('modal_loading_details')}</span>
-        </div>
-      {/if}
 
       <div class="divider">
         <span>{$t('modal_wine_details')}</span>

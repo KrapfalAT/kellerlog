@@ -1,7 +1,8 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { uploadImage } from '$lib/api.js';
+  import { uploadImage, lookupBarcode, searchLibrary } from '$lib/api.js';
   import { t } from '$lib/stores/i18n.js';
+  import BarcodeScanner from '$lib/components/BarcodeScanner.svelte';
 
   export let wine;
   export let isNew = false;
@@ -16,9 +17,50 @@
   let localType = wine.type || 'red';
   let localPrice = wine.price || '';
   let localImage = wine.image_url || '';
+  let localBarcode = wine.barcode || '';
   let uploading = false;
   let uploadError = false;
   let photoInput;
+  let showScanner = false;
+
+  // Library autocomplete
+  let suggestions = [];
+  let showSuggestions = false;
+  let selectedEntry = null;   // library entry chosen from suggestions
+  let searchTimer;
+
+  function onNameInput() {
+    selectedEntry = null;       // typing again clears selection
+    clearTimeout(searchTimer);
+    const q = localName.trim();
+    if (q.length < 1) { suggestions = []; showSuggestions = false; return; }
+    searchTimer = setTimeout(async () => {
+      try {
+        suggestions = await searchLibrary(q);
+        showSuggestions = suggestions.length > 0;
+      } catch { suggestions = []; showSuggestions = false; }
+    }, 200);
+  }
+
+  function pickSuggestion(entry) {
+    selectedEntry  = entry;
+    localName      = entry.name      || '';
+    localProducer  = entry.producer  || '';
+    localVintage   = entry.vintage   || '';
+    localType      = entry.type      || 'red';
+    localImage     = entry.image_url || '';
+    localPrice     = entry.price     != null ? entry.price : '';
+    localBarcode   = entry.barcode   || '';
+    suggestions    = [];
+    showSuggestions = false;
+  }
+
+  function clearSelection() {
+    selectedEntry = null;
+    localName = '';
+    suggestions = [];
+    showSuggestions = false;
+  }
 
   $: typeOptions = [
     { value: 'red',      label: $t('type_red') },
@@ -47,17 +89,38 @@
     }
   }
 
+  async function handleScan(e) {
+    showScanner = false;
+    const barcode = e.detail;
+    localBarcode = barcode;
+    try {
+      const result = await lookupBarcode(barcode);
+      if (result?.source === 'local') {
+        // Barcode already in library → overwrite all fields
+        localName     = result.name      || '';
+        localProducer = result.producer  || '';
+        localVintage  = result.vintage   || '';
+        localType     = result.type      || 'red';
+        localImage    = result.image_url || '';
+        localPrice    = result.price     || '';
+      }
+      // If not in library → barcode is saved but fields stay as typed
+    } catch { /* keep barcode, ignore lookup failure */ }
+  }
+
   function confirm() {
     if (uploading) return;
+    const base = selectedEntry ? { ...selectedEntry } : { ...wine };
     dispatch('confirm', {
       wine: {
-        ...wine,
+        ...base,
         name: localName,
         image_url: localImage,
         producer: localProducer,
         vintage: localVintage ? parseInt(localVintage) : null,
         type: localType,
         price: localPrice ? parseFloat(localPrice) : null,
+        barcode: localBarcode,
       },
       qty,
       isNew,
@@ -68,6 +131,10 @@
     dispatch('cancel');
   }
 </script>
+
+{#if showScanner}
+  <BarcodeScanner on:scan={handleScan} on:close={() => showScanner = false} />
+{/if}
 
 <div class="overlay">
   <div class="sheet">
@@ -108,10 +175,38 @@
           <span class="lib-name">{localName}</span>
           {#if localProducer}<span class="lib-sub">{localProducer}{localVintage ? ` · ${localVintage}` : ''}</span>{/if}
         {:else}
-          <input class="name-input" bind:value={localName} placeholder={$t('inv_wine_name')} />
+          <div class="name-row">
+            <div class="name-autocomplete">
+              <input class="name-input" bind:value={localName} placeholder={$t('inv_wine_name')} on:input={onNameInput} autocomplete="off" />
+              {#if showSuggestions}
+                <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+                <ul class="suggestions">
+                  {#each suggestions as s (s.id)}
+                    <!-- svelte-ignore a11y-click-events-have-key-events -->
+                    <li class="suggestion-item" on:click={() => pickSuggestion(s)}>
+                      <span class="sug-name">{s.name}</span>
+                      {#if s.producer || s.vintage}
+                        <span class="sug-sub">{s.producer || ''}{s.vintage ? (s.producer ? ` · ${s.vintage}` : s.vintage) : ''}</span>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+            <button class="scan-btn" on:click={() => showScanner = true} title="Barcode scannen" type="button">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M21 9V5a2 2 0 00-2-2h-4M21 15v4a2 2 0 01-2 2h-4"/>
+                <line x1="7" y1="12" x2="7" y2="12.01"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="17" y1="12" x2="17" y2="12.01"/>
+              </svg>
+            </button>
+          </div>
         {/if}
         {#if uploadError}
           <span class="upload-err">{$t('inv_upload_error')}</span>
+        {:else if localBarcode && isNew}
+          <span class="barcode-hint">Barcode: {localBarcode}</span>
         {:else if !isNew}
           <span class="stock-info">{$t('inv_stock_info')}: {wine.quantity} {$t('inv_bottles')}</span>
         {:else}
@@ -271,20 +366,90 @@
     gap: 4px;
   }
 
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .name-autocomplete {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+
+  .suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: -8px;
+    right: -8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    list-style: none;
+    z-index: 50;
+    overflow: hidden;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .suggestion-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 9px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover { background: var(--surface-2); }
+
+  .sug-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .sug-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
   .name-input {
+    flex: 1;
     font-size: 15px;
     font-weight: 700;
     color: var(--text);
     border: none;
     border-bottom: 1.5px solid transparent;
     background: transparent;
-    width: 100%;
     padding: 0 0 2px;
     transition: border-color 0.15s;
+    min-width: 0;
   }
   .name-input:focus {
     outline: none;
     border-bottom-color: var(--primary);
+  }
+
+  .scan-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface-2);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .scan-btn:hover {
+    background: rgba(123, 29, 63, 0.08);
+    border-color: var(--primary);
   }
 
   .lib-name {
@@ -311,6 +476,11 @@
     font-size: 11px;
     color: #c0392b;
     font-weight: 600;
+  }
+  .barcode-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: monospace;
   }
 
   /* Fields */

@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
+ARG VITE_DEV_BUILD=false
+ENV VITE_DEV_BUILD=$VITE_DEV_BUILD
 RUN npm run build
 
 FROM nginx:alpine

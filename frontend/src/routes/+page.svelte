@@ -72,6 +72,7 @@
     }
   }
   let selectedWine = null;
+  let quickAddWine = null;
   let libraryAddWine = null;
   let libraryAddIsNew = false;
   let libraryAddFromLibrary = false;
@@ -170,7 +171,7 @@
     const id = e.detail;
     if (!confirm($t('confirm_delete'))) return;
     try {
-      await deleteWine(id);
+      await updateWine(id, { quantity: 0 });
       wines = wines.filter(w => w.id !== id);
       stats = await getStats();
       showToast($t('toast_deleted'));
@@ -185,8 +186,31 @@
   }
 
   function openAdd() {
-    editingWine = null;
-    showModal = true;
+    quickAddWine = { name: '', type: 'red', quantity: 0, image_url: '', producer: '', vintage: null, price: null };
+  }
+
+  async function handleDirectQuickAdd(e) {
+    const { wine, qty } = e.detail;
+    quickAddWine = null;
+    if (!wine.name?.trim()) return;
+    try {
+      if (wine.id) {
+        // Selected from library → update metadata + increment quantity
+        await updateWine(wine.id, {
+          name: wine.name, producer: wine.producer, vintage: wine.vintage,
+          type: wine.type, price: wine.price, image_url: wine.image_url,
+          barcode: wine.barcode,
+          quantity: (wine.quantity || 0) + qty,
+        });
+      } else {
+        await createWine({ ...wine, quantity: qty });
+      }
+      wines = await getWines();
+      stats = await getStats();
+      showToast($t('toast_added'));
+    } catch (err) {
+      handleApiError(err);
+    }
   }
 
   function closeModal() {
@@ -196,13 +220,7 @@
     modalHideStock = false;
   }
 
-  function handleLibrarySelect(e) {
-    libraryPrefill = e.detail;
-    showLibrary = false;
-    showModal = true;
-  }
-
-  function handleLibraryAddToInventory(e) {
+function handleLibraryAddToInventory(e) {
     // Library entries are already unified — just increment quantity
     libraryAddWine = e.detail;
     libraryAddIsNew = false;
@@ -554,7 +572,11 @@
 
   <footer class="footer">
     <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">KellerLog</a>
-    <a class="footer-version" href="https://github.com/KrapfalAT/kellerlog/releases" target="_blank" rel="noopener">v{version}</a>
+    {#if import.meta.env.VITE_DEV_BUILD === 'true'}
+      <span class="footer-version dev-badge">dev</span>
+    {:else}
+      <a class="footer-version" href="https://github.com/KrapfalAT/kellerlog/releases" target="_blank" rel="noopener">v{version}</a>
+    {/if}
   </footer>
 
   <!-- Selection Bar -->
@@ -599,6 +621,11 @@
   <!-- Modal -->
   {#if showModal}
     <AddWineModal wine={editingWine} prefill={libraryPrefill} hideStock={modalHideStock || inventoryMode} {customFields} on:save={handleSave} on:close={closeModal} />
+  {/if}
+
+  <!-- Quick-Add (FAB "+" button) -->
+  {#if quickAddWine}
+    <InventoryQuickAdd wine={quickAddWine} isNew={true} fromLibrary={false} on:confirm={handleDirectQuickAdd} on:cancel={() => quickAddWine = null} />
   {/if}
 
   <!-- Map -->
@@ -653,7 +680,6 @@
   {#if showLibrary}
     <LibraryManager
       on:close={() => showLibrary = false}
-      on:selectEntry={handleLibrarySelect}
       on:addToInventory={handleLibraryAddToInventory}
       on:editEntry={handleLibraryEdit}
       on:duplicateEntry={handleLibraryDuplicate}
@@ -1085,6 +1111,15 @@
     color: inherit;
     text-decoration: none;
     transition: opacity 0.15s;
+  }
+  .dev-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.15);
+    padding: 1px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
   }
   .footer-version:hover { opacity: 1; }
   .footer-link:hover { color: var(--primary); }
