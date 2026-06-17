@@ -9,6 +9,7 @@ export const DEFAULTS = {
   title: 'KellerLog',
   subtitle: 'Meine Weinsammlung',
   logoUrl: '',
+  showDrinkWindow: true,
 };
 
 function hexToHsl(hex) {
@@ -55,21 +56,23 @@ export function applyBranding(b) {
 
 function fromSettings(s) {
   return {
-    primaryColor: s.primary_color ?? DEFAULTS.primaryColor,
-    darkMode:     s.dark_mode     ?? DEFAULTS.darkMode,
-    title:        s.app_title     ?? DEFAULTS.title,
-    subtitle:     s.app_subtitle  ?? DEFAULTS.subtitle,
-    logoUrl:      s.logo_url      ?? DEFAULTS.logoUrl,
+    primaryColor:    s.primary_color      ?? DEFAULTS.primaryColor,
+    darkMode:        s.dark_mode          ?? DEFAULTS.darkMode,
+    title:           s.app_title          ?? DEFAULTS.title,
+    subtitle:        s.app_subtitle       ?? DEFAULTS.subtitle,
+    logoUrl:         s.logo_url           ?? DEFAULTS.logoUrl,
+    showDrinkWindow: s.show_drink_window  ?? DEFAULTS.showDrinkWindow,
   };
 }
 
 function toSettings(b) {
   return {
-    primary_color: b.primaryColor,
-    dark_mode:     b.darkMode,
-    app_title:     b.title,
-    app_subtitle:  b.subtitle,
-    logo_url:      b.logoUrl,
+    primary_color:      b.primaryColor,
+    dark_mode:          b.darkMode,
+    app_title:          b.title,
+    app_subtitle:       b.subtitle,
+    logo_url:           b.logoUrl,
+    show_drink_window:  b.showDrinkWindow,
   };
 }
 

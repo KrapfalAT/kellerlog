@@ -97,6 +97,17 @@ export async function updateWine(id, wine) {
   return r.json();
 }
 
+export async function batchUpdateWines(ids, updates) {
+  const r = await fetch(`${BASE}/wines/batch`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ ids, updates }),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error((await r.json()).detail || 'Fehler');
+  return r.json();
+}
+
 export async function deleteWine(id) {
   const r = await fetch(`${BASE}/wines/${id}`, {
     method: 'DELETE',
@@ -194,6 +205,46 @@ export async function importWines(file) {
   return r.json();
 }
 
+export async function getGrapes() {
+  const r = await fetch(`${BASE}/grapes`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function getDrinkRules() {
+  const r = await fetch(`${BASE}/drink-rules`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function createDrinkRule(data) {
+  const r = await fetch(`${BASE}/drink-rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error((await r.json()).detail || 'Fehler');
+  return r.json();
+}
+
+export async function updateDrinkRule(id, data) {
+  const r = await fetch(`${BASE}/drink-rules/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler beim Speichern');
+  return r.json();
+}
+
+export async function deleteDrinkRule(id) {
+  const r = await fetch(`${BASE}/drink-rules/${id}`, { method: 'DELETE', headers: authHeaders() });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler beim Löschen');
+}
+
 export async function getSettings() {
   const r = await fetch(`${BASE}/settings`);
   if (!r.ok) return null;
@@ -209,4 +260,38 @@ export async function updateSettings(data) {
   if (r.status === 401) throw new Error('UNAUTHORIZED');
   if (!r.ok) throw new Error('Fehler beim Speichern');
   return r.json();
+}
+
+export async function getCustomFields() {
+  const r = await fetch(`${BASE}/custom-fields`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function createCustomField(data) {
+  const r = await fetch(`${BASE}/custom-fields`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error((await r.json()).detail || 'Fehler');
+  return r.json();
+}
+
+export async function updateCustomField(id, data) {
+  const r = await fetch(`${BASE}/custom-fields/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler');
+  return r.json();
+}
+
+export async function deleteCustomField(id) {
+  const r = await fetch(`${BASE}/custom-fields/${id}`, { method: 'DELETE', headers: authHeaders() });
+  if (r.status === 401) throw new Error('UNAUTHORIZED');
+  if (!r.ok) throw new Error('Fehler');
 }

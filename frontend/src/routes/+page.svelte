@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { version } from '../../package.json';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, updateLibraryEntry } from '$lib/api.js';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, updateLibraryEntry, getDrinkRules, batchUpdateWines, getCustomFields } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
@@ -10,6 +10,9 @@
   import BrandingPanel from '$lib/components/BrandingPanel.svelte';
   import UserManagementPanel from '$lib/components/UserManagementPanel.svelte';
   import KioskPanel from '$lib/components/KioskPanel.svelte';
+  import DrinkRulesPanel from '$lib/components/DrinkRulesPanel.svelte';
+  import BatchEditPanel from '$lib/components/BatchEditPanel.svelte';
+  import CustomFieldsPanel from '$lib/components/CustomFieldsPanel.svelte';
   import WineDetail from '$lib/components/WineDetail.svelte';
   import BarcodeScanner from '$lib/components/BarcodeScanner.svelte';
   import InventoryQuickAdd from '$lib/components/InventoryQuickAdd.svelte';
@@ -35,7 +38,39 @@
   let showBranding = false;
   let showUsers = false;
   let showKiosk = false;
+  let showDrinkRules = false;
+  let showBatchEdit = false;
+  let showCustomFields = false;
   let showMenu = false;
+  let drinkRules = [];
+  let customFields = [];
+  let selectionMode = false;
+  let selectedIds = new Set();
+
+  function toggleSelection(id) {
+    selectedIds = selectedIds.has(id)
+      ? (selectedIds.delete(id), new Set(selectedIds))
+      : new Set(selectedIds).add(id);
+  }
+  function selectAll() {
+    selectedIds = new Set(filteredWines.map(w => w.id));
+  }
+  function exitSelectionMode() {
+    selectionMode = false;
+    selectedIds = new Set();
+  }
+  async function handleBatchSave(e) {
+    try {
+      const result = await batchUpdateWines([...selectedIds], e.detail);
+      wines = await getWines();
+      stats = await getStats();
+      showToast(`${result.updated} ${$t('batch_success')}`);
+      showBatchEdit = false;
+      exitSelectionMode();
+    } catch (err) {
+      handleApiError(err);
+    }
+  }
   let selectedWine = null;
   let libraryAddWine = null;
   let libraryAddIsNew = false;
@@ -84,7 +119,7 @@
 
   async function load() {
     try {
-      [wines, stats] = await Promise.all([getWines(), getStats()]);
+      [wines, stats, drinkRules, customFields] = await Promise.all([getWines(), getStats(), getDrinkRules(), getCustomFields()]);
     } catch (e) {
       error = $t('error_connection');
     } finally {
@@ -429,6 +464,21 @@
                 </svg>
                 {$t('menu_kiosk_settings')}
               </button>
+              <button class="menu-item" on:click={() => { showDrinkRules = true; showMenu = false; }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/>
+                  <line x1="14" y1="4" x2="20" y2="4"/><line x1="14" y1="12" x2="20" y2="12"/><line x1="14" y1="20" x2="20" y2="20"/>
+                  <line x1="4" y1="4" x2="10" y2="4"/><line x1="4" y1="12" x2="10" y2="12"/><line x1="4" y1="20" x2="10" y2="20"/>
+                </svg>
+                {$t('drink_rules_menu')}
+              </button>
+              <button class="menu-item" on:click={() => { showCustomFields = true; showMenu = false; }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+                {$t('custom_fields_menu')}
+              </button>
               {/if}
               <div class="menu-divider"></div>
               <div class="menu-section-label">{$t('menu_language')}</div>
@@ -485,6 +535,15 @@
           />
         </div>
 
+        {#if $isAdmin && !inventoryMode}
+          <button class="btn-select-mode" class:active={selectionMode} on:click={() => { if (selectionMode) { exitSelectionMode(); } else { selectionMode = true; } }} title={$t('batch_mode')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            {$t('batch_mode')}
+          </button>
+        {/if}
         <select class="control-sort" bind:value={sortBy}>
           <option value="date">{$t('sort_date')}</option>
           <option value="name">{$t('sort_name')}</option>
@@ -521,7 +580,7 @@
       <p class="result-count">{filteredWines.length} {filteredWines.length !== 1 ? $t('count_plural') : $t('count_singular')}</p>
       <div class="wine-grid">
         {#each filteredWines as wine (wine.id)}
-          <WineCard {wine} {inventoryMode} readonly={!$isAdmin || inventoryMode} on:select={(e) => selectedWine = e.detail} on:edit={handleEdit} on:delete={handleDelete} on:quantityChange={handleQuantityChange} />
+          <WineCard {wine} {inventoryMode} readonly={!$isAdmin || inventoryMode} showDrinkWindow={$branding.showDrinkWindow} {drinkRules} selectable={selectionMode} selected={selectedIds.has(wine.id)} on:toggle={(e) => toggleSelection(e.detail)} on:select={(e) => selectedWine = e.detail} on:edit={handleEdit} on:delete={handleDelete} on:quantityChange={handleQuantityChange} />
         {/each}
       </div>
     {/if}
@@ -531,6 +590,22 @@
     <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">KellerLog</a>
     <a class="footer-version" href="https://github.com/KrapfalAT/kellerlog/releases" target="_blank" rel="noopener">v{version}</a>
   </footer>
+
+  <!-- Selection Bar -->
+  {#if selectionMode}
+    <div class="selection-bar">
+      <span class="sel-count">{selectedIds.size} {selectedIds.size === 1 ? $t('count_singular') : $t('count_plural')} {$t('batch_selected')}</span>
+      <div class="sel-actions">
+        <button class="sel-btn" on:click={selectedIds.size === filteredWines.length ? () => selectedIds = new Set() : selectAll}>
+          {selectedIds.size === filteredWines.length ? $t('batch_deselect_all') : $t('batch_select_all')}
+        </button>
+        <button class="sel-btn primary" disabled={selectedIds.size === 0} on:click={() => showBatchEdit = true}>
+          {$t('batch_edit_btn')}
+        </button>
+        <button class="sel-btn close" on:click={exitSelectionMode}>✕</button>
+      </div>
+    </div>
+  {/if}
 
   <!-- FAB -->
   {#if inventoryMode}
@@ -547,7 +622,7 @@
       </svg>
     </button>
   {/if}
-  {#if $isAdmin}
+  {#if $isAdmin && !selectionMode}
   <button class="fab" on:click={openAdd} title={$t('nav_add')} aria-label={$t('nav_add')}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -557,7 +632,7 @@
 
   <!-- Modal -->
   {#if showModal}
-    <AddWineModal wine={editingWine} prefill={libraryPrefill} hideStock={modalHideStock || inventoryMode} on:save={handleSave} on:close={closeModal} />
+    <AddWineModal wine={editingWine} prefill={libraryPrefill} hideStock={modalHideStock || inventoryMode} {customFields} on:save={handleSave} on:close={closeModal} />
   {/if}
 
   <!-- Map -->
@@ -585,9 +660,24 @@
     <KioskPanel on:close={() => showKiosk = false} />
   {/if}
 
+  <!-- Batch Edit -->
+  {#if showBatchEdit}
+    <BatchEditPanel count={selectedIds.size} on:save={handleBatchSave} on:close={() => showBatchEdit = false} />
+  {/if}
+
+  <!-- Drink Rules -->
+  {#if showDrinkRules}
+    <DrinkRulesPanel on:close={() => showDrinkRules = false} on:rulesChanged={async () => drinkRules = await getDrinkRules()} />
+  {/if}
+
+  <!-- Custom Fields -->
+  {#if showCustomFields}
+    <CustomFieldsPanel on:close={() => showCustomFields = false} on:changed={async () => customFields = await getCustomFields()} />
+  {/if}
+
   <!-- Wine detail (image click) -->
   {#if selectedWine}
-    <WineDetail wine={selectedWine} editable={true}
+    <WineDetail wine={selectedWine} editable={true} {customFields}
       on:close={() => selectedWine = null}
       on:edit={(e) => { selectedWine = null; editingWine = e.detail; showModal = true; }}
     />
@@ -685,6 +775,71 @@
     background: rgba(255,255,255,0.28);
     color: white;
   }
+
+  .btn-select-mode {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .btn-select-mode:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-select-mode.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  .selection-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    gap: 12px;
+    z-index: 45;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  }
+  .sel-count {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .sel-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .sel-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface-2);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .sel-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .sel-btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+  .sel-btn.primary:hover:not(:disabled) { background: var(--primary-dark); }
+  .sel-btn.primary:disabled { opacity: 0.45; cursor: default; }
+  .sel-btn.close { padding: 8px 12px; }
 
   .inv-bar {
     position: fixed;

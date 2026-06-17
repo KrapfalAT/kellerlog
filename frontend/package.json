@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "@zxing/browser": "^0.1.4",
+    "@zxing/library": "^0.21.3"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.1",

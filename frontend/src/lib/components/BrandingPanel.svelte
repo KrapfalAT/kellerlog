@@ -6,7 +6,8 @@
 
   const dispatch = createEventDispatcher();
 
-  let darkMode     = $branding.darkMode ?? false;
+  let darkMode        = $branding.darkMode ?? false;
+  let showDrinkWindow = $branding.showDrinkWindow ?? true;
   let color        = $branding.primaryColor;
   let title        = $branding.title;
   let subtitle     = $branding.subtitle;
@@ -14,7 +15,8 @@
   let uploadingLogo = false;
   let logoInput;
 
-  function onDarkMode() { branding.save({ darkMode }); }
+  function onDarkMode()        { branding.save({ darkMode }); }
+  function onShowDrinkWindow() { branding.save({ showDrinkWindow }); }
 
   function onColor(e) {
     color = e.target.value;
@@ -51,7 +53,8 @@
   }
 
   function reset() {
-    darkMode      = DEFAULTS.darkMode;
+    darkMode        = DEFAULTS.darkMode;
+    showDrinkWindow = DEFAULTS.showDrinkWindow;
     color         = DEFAULTS.primaryColor;
     title         = DEFAULTS.title;
     subtitle      = DEFAULTS.subtitle;
@@ -81,7 +84,7 @@
 
     <div class="body">
 
-      <!-- Dark mode -->
+      <!-- Dark mode + Drink window -->
       <section class="section">
         <label class="toggle-row">
           <div>
@@ -90,6 +93,14 @@
           </div>
           <input type="checkbox" bind:checked={darkMode} on:change={onDarkMode} class="toggle-input" />
           <span class="toggle-track" class:on={darkMode}><span class="toggle-thumb"></span></span>
+        </label>
+        <label class="toggle-row">
+          <div>
+            <div class="toggle-label">{$t('branding_drink_window')}</div>
+            <div class="toggle-desc">{$t('branding_drink_window_desc')}</div>
+          </div>
+          <input type="checkbox" bind:checked={showDrinkWindow} on:change={onShowDrinkWindow} class="toggle-input" />
+          <span class="toggle-track" class:on={showDrinkWindow}><span class="toggle-thumb"></span></span>
         </label>
       </section>
 

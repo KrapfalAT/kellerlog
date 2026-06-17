@@ -15,6 +15,7 @@
   let kioskSubtitle = 'Unsere Weinauswahl';
   let kioskShowFooter = true;
   let kioskShowMap = true;
+  let kioskShowDrinkWindow = false;
 
   onMount(async () => {
     document.body.style.overflow = 'hidden';
@@ -26,6 +27,7 @@
         kioskSubtitle = s.kiosk_subtitle;
         kioskShowFooter = s.kiosk_show_footer;
         kioskShowMap = s.kiosk_show_map;
+        kioskShowDrinkWindow = s.kiosk_show_drink_window ?? false;
       }
     } catch {
       error = $t('kiosk_panel_error');
@@ -46,6 +48,7 @@
         kiosk_subtitle: kioskSubtitle,
         kiosk_show_footer: kioskShowFooter,
         kiosk_show_map: kioskShowMap,
+        kiosk_show_drink_window: kioskShowDrinkWindow,
       });
       success = true;
       setTimeout(() => { success = false; }, 2500);
@@ -126,6 +129,21 @@
               on:click={() => { if (kioskEnabled) kioskShowMap = !kioskShowMap; }}
               role="switch"
               aria-checked={kioskShowMap}
+              disabled={!kioskEnabled}
+            >
+              <span class="thumb"></span>
+            </button>
+          </label>
+          <label class="toggle-row slim">
+            <div class="toggle-info">
+              <span class="toggle-label">{$t('kiosk_panel_show_drink_window')}</span>
+            </div>
+            <button
+              class="toggle small"
+              class:on={kioskShowDrinkWindow}
+              on:click={() => { if (kioskEnabled) kioskShowDrinkWindow = !kioskShowDrinkWindow; }}
+              role="switch"
+              aria-checked={kioskShowDrinkWindow}
               disabled={!kioskEnabled}
             >
               <span class="thumb"></span>

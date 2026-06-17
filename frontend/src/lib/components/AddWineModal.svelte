@@ -1,12 +1,13 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { searchWines, lookupBarcode, getWineDetails, uploadImage, searchLibrary } from '$lib/api.js';
-  import { t } from '$lib/stores/i18n.js';
+  import { t, lang } from '$lib/stores/i18n.js';
   import BarcodeScanner from './BarcodeScanner.svelte';
 
-  export let wine = null;       // null = new, object = edit existing
-  export let prefill = null;    // pre-fill from library without triggering edit mode
-  export let hideStock = false; // hide inventory quantity field (e.g. when opened from map)
+  export let wine = null;         // null = new, object = edit existing
+  export let prefill = null;      // pre-fill from library without triggering edit mode
+  export let hideStock = false;   // hide inventory quantity field (e.g. when opened from map)
+  export let customFields = [];   // custom field definitions
 
   const dispatch = createEventDispatcher();
 
@@ -15,7 +16,8 @@
     region: '', country: '', type: 'red', alcohol: null,
     rating: null, quantity: 1, notes: '', price: null,
     barcode: '', image_url: '', body: '', acidity: '',
-    pairings: '', description: '', wineapi_id: '', by_glass: false, price_per_glass: null
+    pairings: '', description: '', wineapi_id: '', by_glass: false, price_per_glass: null,
+    location: ''
   };
 
   function initForm() {
@@ -28,6 +30,7 @@
   }
 
   let form = initForm();
+  let customValues = wine?.custom_values ? { ...wine.custom_values } : {};
   let searchInput = '';
   let searchResults = [];
   let isSearching = false;
@@ -182,6 +185,7 @@
         alcohol: form.alcohol ? parseFloat(form.alcohol) : null,
         quantity: parseInt(form.quantity) || 1,
         price: form.price ? parseFloat(form.price) : null,
+        custom_values: customValues,
       });
     } finally {
       saving = false;
@@ -347,6 +351,9 @@
           <div class="field">
             <label for="country">{$t('modal_field_country')}</label>
             <input id="country" type="text" bind:value={form.country} placeholder={$t('modal_field_country')} />
+
+            <label for="location">{$t('modal_field_location')}</label>
+            <input id="location" type="text" bind:value={form.location} placeholder="z.B. Regal A3, Kühlschrank" />
           </div>
 
           <div class="field">
@@ -431,6 +438,22 @@
             <label for="price_per_glass">{$t('modal_field_price_per_glass')}</label>
             <input id="price_per_glass" type="number" bind:value={form.price_per_glass} placeholder="0.00" step="0.01" min="0" />
           </div>
+          {/if}
+
+          {#if customFields.length > 0}
+            <div class="field span-2 custom-section">
+              <div class="custom-section-label">{$t('custom_fields_in_modal')}</div>
+              {#each customFields as cf (cf.key)}
+                <div class="field">
+                  <label for="cf-{cf.key}">{$lang === 'de' ? cf.label_de : (cf.label_en || cf.label_de)}</label>
+                  {#if cf.field_type === 'textarea'}
+                    <textarea id="cf-{cf.key}" bind:value={customValues[cf.key]} rows="2"></textarea>
+                  {:else}
+                    <input id="cf-{cf.key}" type={cf.field_type === 'number' ? 'number' : cf.field_type === 'date' ? 'date' : 'text'} bind:value={customValues[cf.key]} />
+                  {/if}
+                </div>
+              {/each}
+            </div>
           {/if}
 
           <div class="field span-2">
@@ -889,6 +912,12 @@
     transition: transform 0.2s;
   }
   .toggle-track.on .toggle-thumb { transform: translateX(18px); }
+
+  .custom-section { display: flex; flex-direction: column; gap: 10px; }
+  .custom-section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); padding-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
 
   .result-item.local { background: rgba(123, 29, 63, 0.03); }
   .result-title {

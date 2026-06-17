@@ -1,9 +1,10 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import { t } from '$lib/stores/i18n.js';
+  import { t, lang } from '$lib/stores/i18n.js';
 
   export let wine;
   export let editable = false;
+  export let customFields = [];
 
   const dispatch = createEventDispatcher();
 
@@ -135,6 +136,23 @@
             <span class="prop-label">{$t('detail_notes')}</span>
             <p>{wine.notes}</p>
           </div>
+        {/if}
+
+        {#if customFields.length > 0 && wine.custom_values}
+          {@const visibleFields = customFields.filter(cf => wine.custom_values[cf.key])}
+          {#if visibleFields.length > 0}
+            <div class="custom-fields">
+              <span class="prop-label">{$t('custom_fields_section')}</span>
+              <div class="custom-grid">
+                {#each visibleFields as cf (cf.key)}
+                  <div class="custom-item">
+                    <span class="custom-label">{$lang === 'de' ? cf.label_de : (cf.label_en || cf.label_de)}</span>
+                    <span class="custom-val">{wine.custom_values[cf.key]}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
         {/if}
 
         <div class="footer-row">
@@ -364,6 +382,12 @@
     color: var(--text-muted);
     line-height: 1.5;
   }
+
+  .custom-fields { display: flex; flex-direction: column; gap: 8px; }
+  .custom-grid { display: flex; flex-direction: column; gap: 6px; }
+  .custom-item { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .custom-label { font-size: 13px; color: var(--text-muted); }
+  .custom-val { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
 
   .footer-row {
     display: flex;

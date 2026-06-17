@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { getWines, getSettings } from '$lib/api.js';
+  import { getWines, getSettings, getDrinkRules, getCustomFields } from '$lib/api.js';
   import { branding } from '$lib/stores/branding.js';
   import { t } from '$lib/stores/i18n.js';
   import WineCard from '$lib/components/WineCard.svelte';
@@ -14,6 +14,9 @@
   let kioskSubtitle = 'Unsere Weinauswahl';
   let kioskShowFooter = true;
   let kioskShowMap = true;
+  let kioskShowDrinkWindow = false;
+  let drinkRules = [];
+  let customFields = [];
   let filterType = 'all';
   let searchQuery = '';
   let showMap = false;
@@ -50,15 +53,18 @@
 
   onMount(async () => {
     try {
-      const [settings, wineList] = await Promise.all([getSettings(), getWines()]);
+      const [settings, wineList, rules, fields] = await Promise.all([getSettings(), getWines(), getDrinkRules(), getCustomFields()]);
       if (settings) {
-        kioskEnabled    = settings.kiosk_enabled;
-        kioskTitle      = settings.kiosk_title;
-        kioskSubtitle   = settings.kiosk_subtitle;
-        kioskShowFooter = settings.kiosk_show_footer;
-        kioskShowMap    = settings.kiosk_show_map;
+        kioskEnabled          = settings.kiosk_enabled;
+        kioskTitle            = settings.kiosk_title;
+        kioskSubtitle         = settings.kiosk_subtitle;
+        kioskShowFooter       = settings.kiosk_show_footer;
+        kioskShowMap          = settings.kiosk_show_map;
+        kioskShowDrinkWindow  = settings.kiosk_show_drink_window ?? false;
       }
       wines = wineList;
+      drinkRules = rules;
+      customFields = fields;
     } finally {
       loading = false;
     }
@@ -147,7 +153,7 @@
       <p class="count">{filteredWines.length} {filteredWines.length !== 1 ? $t('count_plural') : $t('count_singular')}</p>
       <div class="wine-grid">
         {#each filteredWines as wine (wine.id)}
-          <WineCard {wine} readonly={true} on:select={(e) => selectedWine = e.detail} />
+          <WineCard {wine} readonly={true} showDrinkWindow={kioskShowDrinkWindow} {drinkRules} on:select={(e) => selectedWine = e.detail} />
         {/each}
       </div>
     {/if}
@@ -164,7 +170,7 @@
   {/if}
 
   {#if selectedWine}
-    <WineDetail wine={selectedWine} on:close={() => selectedWine = null} />
+    <WineDetail wine={selectedWine} {customFields} on:close={() => selectedWine = null} />
   {/if}
 </div>
 {/if}

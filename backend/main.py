@@ -23,7 +23,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text, func, or_
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-DATABASE_URL = "sqlite:////app/data/wines.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/wines.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -115,6 +115,7 @@ class WineModel(Base):
     wineapi_id = Column(String, default="")
     by_glass = Column(Boolean, default=False)
     price_per_glass = Column(Float, nullable=True)
+    location = Column(String, default="")
     added_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -168,6 +169,43 @@ class AppSettings(Base):
     app_title = Column(String, default="KellerLog")
     app_subtitle = Column(String, default="Meine Weinsammlung")
     logo_url = Column(String, default="")
+    show_drink_window = Column(Boolean, default=True)
+    kiosk_show_drink_window = Column(Boolean, default=False)
+
+
+class Grape(Base):
+    __tablename__ = "grapes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, unique=True, nullable=False)
+
+
+class DrinkWindowRule(Base):
+    __tablename__ = "drink_window_rules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    wine_type = Column(String, default="")  # empty string = any type
+    grape = Column(String, nullable=True)   # null = any grape
+    from_offset = Column(Integer, default=0)
+    to_offset = Column(Integer, default=5)
+
+
+class CustomField(Base):
+    __tablename__ = "custom_fields"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String, unique=True, nullable=False)
+    label_de = Column(String, nullable=False, default="")
+    label_en = Column(String, nullable=False, default="")
+    field_type = Column(String, default="text")  # text | number | date | textarea
+    sort_order = Column(Integer, default=0)
+
+
+class WineCustomValue(Base):
+    __tablename__ = "wine_custom_values"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    wine_id = Column(Integer, nullable=False)
+    field_key = Column(String, nullable=False)
+    value = Column(String, default="")
 
 
 Base.metadata.create_all(bind=engine)
@@ -182,6 +220,7 @@ def _ensure_columns():
         ("wineapi_id", "TEXT DEFAULT ''"),
         ("by_glass", "INTEGER DEFAULT 0"),
         ("price_per_glass", "REAL"),
+        ("location", "TEXT DEFAULT ''"),
     ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.execute(text("PRAGMA table_info(wines)"))}
@@ -201,6 +240,8 @@ def _migrate_settings():
         ("app_title",      "TEXT DEFAULT 'KellerLog'"),
         ("app_subtitle",   "TEXT DEFAULT 'Meine Weinsammlung'"),
         ("logo_url",       "TEXT DEFAULT ''"),
+        ("show_drink_window", "INTEGER DEFAULT 1"),
+        ("kiosk_show_drink_window", "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.execute(text("PRAGMA table_info(app_settings)"))}
@@ -210,6 +251,16 @@ def _migrate_settings():
         conn.commit()
 
 _migrate_settings()
+
+
+def _migrate_drink_rules():
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(drink_window_rules)"))}
+        if 'grape' not in existing:
+            conn.execute(text("ALTER TABLE drink_window_rules ADD COLUMN grape TEXT"))
+        conn.commit()
+
+_migrate_drink_rules()
 
 
 def _init_users():
@@ -241,7 +292,54 @@ def _init_settings():
 
 _init_settings()
 
-IMAGES_DIR = Path("/app/data/images")
+
+def _init_drink_rules():
+    db = SessionLocal()
+    try:
+        if db.query(DrinkWindowRule).count() == 0:
+            defaults = [
+                DrinkWindowRule(name="Weißwein",         wine_type="white",    from_offset=0, to_offset=4),
+                DrinkWindowRule(name="Rotwein",          wine_type="red",      from_offset=3, to_offset=12),
+                DrinkWindowRule(name="Rosé",             wine_type="rosé",     from_offset=0, to_offset=3),
+                DrinkWindowRule(name="Sekt / Schaumwein",wine_type="sparkling",from_offset=0, to_offset=5),
+                DrinkWindowRule(name="Dessertwein",      wine_type="dessert",  from_offset=3, to_offset=20),
+                DrinkWindowRule(name="Sonstige",         wine_type="other",    from_offset=1, to_offset=6),
+            ]
+            db.add_all(defaults)
+            db.commit()
+    finally:
+        db.close()
+
+_init_drink_rules()
+
+
+def _init_grapes():
+    db = SessionLocal()
+    try:
+        if db.query(Grape).count() == 0:
+            for (grape_str,) in db.query(WineModel.grape).filter(WineModel.grape != "").distinct().all():
+                for part in grape_str.split(','):
+                    name = part.strip()
+                    if name and not db.query(Grape).filter(func.lower(Grape.name) == name.lower()).first():
+                        db.add(Grape(name=name))
+            db.commit()
+    finally:
+        db.close()
+
+_init_grapes()
+
+
+def _save_grape(db: Session, grape_str: str) -> None:
+    if not grape_str or not grape_str.strip():
+        return
+    for part in grape_str.split(','):
+        name = part.strip()
+        if name and not db.query(Grape).filter(func.lower(Grape.name) == name.lower()).first():
+            db.add(Grape(name=name))
+    db.commit()
+
+
+IMAGES_DIR = Path(os.getenv("IMAGES_DIR", "/app/data/images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 limiter = Limiter(key_func=get_remote_address)
@@ -291,6 +389,8 @@ class WineCreate(BaseModel):
     wineapi_id: str = ""
     by_glass: bool = False
     price_per_glass: Optional[float] = None
+    location: str = ""
+    custom_values: Optional[dict] = None
 
 
 class WineUpdate(BaseModel):
@@ -315,6 +415,8 @@ class WineUpdate(BaseModel):
     wineapi_id: Optional[str] = None
     by_glass: Optional[bool] = None
     price_per_glass: Optional[float] = None
+    location: Optional[str] = None
+    custom_values: Optional[dict] = None
 
 
 class WineResponse(BaseModel):
@@ -340,7 +442,9 @@ class WineResponse(BaseModel):
     wineapi_id: str
     by_glass: bool
     price_per_glass: Optional[float]
+    location: str
     added_at: datetime
+    custom_values: dict = {}
 
     model_config = {"from_attributes": True}
 
@@ -405,6 +509,8 @@ class SettingsUpdate(BaseModel):
     app_title: Optional[str] = None
     app_subtitle: Optional[str] = None
     logo_url: Optional[str] = None
+    show_drink_window: Optional[bool] = None
+    kiosk_show_drink_window: Optional[bool] = None
 
 
 class SettingsResponse(BaseModel):
@@ -418,6 +524,75 @@ class SettingsResponse(BaseModel):
     app_title: str
     app_subtitle: str
     logo_url: str
+    show_drink_window: bool
+    kiosk_show_drink_window: bool
+    model_config = {"from_attributes": True}
+
+
+class BatchUpdateData(BaseModel):
+    type: Optional[str] = None
+    location: Optional[str] = None
+    region: Optional[str] = None
+    country: Optional[str] = None
+    producer: Optional[str] = None
+    rating: Optional[int] = None
+    body: Optional[str] = None
+    acidity: Optional[str] = None
+
+
+class WineBatchUpdate(BaseModel):
+    ids: List[int]
+    updates: BatchUpdateData
+
+
+class DrinkRuleCreate(BaseModel):
+    name: str
+    wine_type: str = ""     # empty = any type
+    grape: Optional[str] = None
+    from_offset: int = 0
+    to_offset: int = 5
+
+
+class DrinkRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    wine_type: Optional[str] = None
+    grape: Optional[str] = None
+    from_offset: Optional[int] = None
+    to_offset: Optional[int] = None
+
+
+class DrinkRuleResponse(BaseModel):
+    id: int
+    name: str
+    wine_type: str
+    grape: Optional[str]
+    from_offset: int
+    to_offset: int
+    model_config = {"from_attributes": True}
+
+
+class CustomFieldCreate(BaseModel):
+    key: str
+    label_de: str
+    label_en: str = ""
+    field_type: str = "text"
+    sort_order: int = 0
+
+
+class CustomFieldUpdate(BaseModel):
+    label_de: Optional[str] = None
+    label_en: Optional[str] = None
+    field_type: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class CustomFieldResponse(BaseModel):
+    id: int
+    key: str
+    label_de: str
+    label_en: str
+    field_type: str
+    sort_order: int
     model_config = {"from_attributes": True}
 
 
@@ -464,6 +639,30 @@ def _parse_wineapi(data: dict) -> dict:
         "description": data.get("description") or "",
         "pairings": pairings_str,
     }
+
+
+def _wine_to_dict(wine: WineModel, custom_values: Optional[dict] = None) -> dict:
+    d = {c.name: getattr(wine, c.name) for c in WineModel.__table__.columns}
+    d['custom_values'] = custom_values or {}
+    return d
+
+
+def _load_cvs(db: Session, wine_ids: list) -> dict:
+    if not wine_ids:
+        return {}
+    rows = db.query(WineCustomValue).filter(WineCustomValue.wine_id.in_(wine_ids)).all()
+    result: dict = {}
+    for r in rows:
+        result.setdefault(r.wine_id, {})[r.field_key] = r.value
+    return result
+
+
+def _save_custom_values(db: Session, wine_id: int, values: dict):
+    db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).delete()
+    for key, val in values.items():
+        if val is not None and str(val).strip():
+            db.add(WineCustomValue(wine_id=wine_id, field_key=key, value=str(val).strip()))
+    db.commit()
 
 
 _LIB_STR = ["name", "producer", "grape", "region", "country", "type", "notes",
@@ -591,21 +790,114 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), _=Depen
     return row
 
 
+# ── Grapes ───────────────────────────────────────────────────────────────────
+
+@app.get("/grapes")
+def get_grapes(db: Session = Depends(get_db)):
+    return [g.name for g in db.query(Grape).order_by(Grape.name).all()]
+
+
+# ── Drink Window Rules ────────────────────────────────────────────────────────
+
+@app.get("/drink-rules", response_model=List[DrinkRuleResponse])
+def get_drink_rules(db: Session = Depends(get_db)):
+    return db.query(DrinkWindowRule).order_by(DrinkWindowRule.id).all()
+
+
+@app.post("/drink-rules", response_model=DrinkRuleResponse)
+def create_drink_rule(data: DrinkRuleCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    rule = DrinkWindowRule(**data.model_dump())
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    return rule
+
+
+@app.put("/drink-rules/{rule_id}", response_model=DrinkRuleResponse)
+def update_drink_rule(rule_id: int, data: DrinkRuleUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    rule = db.get(DrinkWindowRule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404)
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(rule, field, value)
+    db.commit()
+    db.refresh(rule)
+    return rule
+
+
+@app.delete("/drink-rules/{rule_id}")
+def delete_drink_rule(rule_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
+    rule = db.get(DrinkWindowRule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404)
+    db.delete(rule)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Custom Fields ─────────────────────────────────────────────────────────────
+
+@app.get("/custom-fields", response_model=List[CustomFieldResponse])
+def get_custom_fields(db: Session = Depends(get_db)):
+    return db.query(CustomField).order_by(CustomField.sort_order, CustomField.id).all()
+
+
+@app.post("/custom-fields", response_model=CustomFieldResponse)
+def create_custom_field(data: CustomFieldCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    if db.query(CustomField).filter(CustomField.key == data.key).first():
+        raise HTTPException(status_code=400, detail="Key bereits vergeben")
+    field = CustomField(**data.model_dump())
+    db.add(field)
+    db.commit()
+    db.refresh(field)
+    return field
+
+
+@app.put("/custom-fields/{field_id}", response_model=CustomFieldResponse)
+def update_custom_field(field_id: int, data: CustomFieldUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    field = db.get(CustomField, field_id)
+    if not field:
+        raise HTTPException(status_code=404)
+    for k, v in data.model_dump(exclude_none=True).items():
+        setattr(field, k, v)
+    db.commit()
+    db.refresh(field)
+    return field
+
+
+@app.delete("/custom-fields/{field_id}")
+def delete_custom_field(field_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
+    field = db.get(CustomField, field_id)
+    if not field:
+        raise HTTPException(status_code=404)
+    db.query(WineCustomValue).filter(WineCustomValue.field_key == field.key).delete()
+    db.delete(field)
+    db.commit()
+    return {"ok": True}
+
+
 # ── Wine CRUD ─────────────────────────────────────────────────────────────────
 
 @app.get("/wines", response_model=List[WineResponse])
 def get_wines(db: Session = Depends(get_db)):
-    return db.query(WineModel).order_by(WineModel.added_at.desc()).all()
+    wines = db.query(WineModel).order_by(WineModel.added_at.desc()).all()
+    cv_map = _load_cvs(db, [w.id for w in wines])
+    return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
 
 @app.post("/wines", response_model=WineResponse)
 def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
-    db_wine = WineModel(**wine.model_dump())
+    wine_data = wine.model_dump(exclude={'custom_values'})
+    db_wine = WineModel(**wine_data)
     db.add(db_wine)
     db.commit()
     db.refresh(db_wine)
-    _upsert_library(db, wine.model_dump())
-    return db_wine
+    _upsert_library(db, wine_data)
+    _save_grape(db, wine.grape)
+    if wine.custom_values:
+        _save_custom_values(db, db_wine.id, wine.custom_values)
+    cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == db_wine.id).all()}
+    return _wine_to_dict(db_wine, cvs)
 
 
 @app.get("/wines/{wine_id}", response_model=WineResponse)
@@ -613,7 +905,8 @@ def get_wine(wine_id: int, db: Session = Depends(get_db)):
     wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
-    return wine
+    cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).all()}
+    return _wine_to_dict(wine, cvs)
 
 
 @app.put("/wines/{wine_id}", response_model=WineResponse)
@@ -621,13 +914,32 @@ def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get
     wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
-    for field, value in wine_update.model_dump(exclude_unset=True).items():
+    for field, value in wine_update.model_dump(exclude_unset=True, exclude={'custom_values'}).items():
         setattr(wine, field, value)
     db.commit()
     db.refresh(wine)
     skip = {"id", "quantity", "added_at"}
     _upsert_library(db, {c.name: getattr(wine, c.name) for c in WineModel.__table__.columns if c.name not in skip})
-    return wine
+    _save_grape(db, wine.grape)
+    if wine_update.custom_values is not None:
+        _save_custom_values(db, wine_id, wine_update.custom_values)
+    cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).all()}
+    return _wine_to_dict(wine, cvs)
+
+
+@app.put("/wines/batch")
+def batch_update_wines(data: WineBatchUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
+    if not data.ids:
+        raise HTTPException(status_code=400, detail="Keine IDs angegeben")
+    updates = data.updates.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="Keine Felder zum Aktualisieren")
+    wines = db.query(WineModel).filter(WineModel.id.in_(data.ids)).all()
+    for wine in wines:
+        for field, value in updates.items():
+            setattr(wine, field, value)
+    db.commit()
+    return {"updated": len(wines)}
 
 
 @app.delete("/wines/{wine_id}")
@@ -635,6 +947,7 @@ def delete_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_a
     wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
+    db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).delete()
     db.delete(wine)
     db.commit()
     return {"message": "Wein gelöscht"}
@@ -864,7 +1177,7 @@ async def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(
 
 _EXPORT_FIELDS = [
     'name', 'producer', 'vintage', 'type', 'grape', 'region', 'country',
-    'quantity', 'price', 'alcohol', 'rating', 'body', 'acidity',
+    'location', 'quantity', 'price', 'alcohol', 'rating', 'body', 'acidity',
     'pairings', 'description', 'notes', 'barcode', 'image_url', 'wineapi_id',
 ]
 

@@ -5,6 +5,26 @@
   export let wine;
   export let readonly = false;
   export let inventoryMode = false;
+  export let showDrinkWindow = false;
+  export let drinkRules = [];
+  export let selectable = false;
+  export let selected = false;
+
+  $: drinkStatus = (() => {
+    if (!showDrinkWindow || !wine.vintage || !wine.type || !drinkRules.length) return null;
+    const rule = drinkRules.find(r =>
+      (!r.wine_type || r.wine_type === wine.type) &&
+      (!r.grape || r.grape.toLowerCase() === (wine.grape || '').toLowerCase())
+    );
+    if (!rule) return null;
+    const from = wine.vintage + rule.from_offset;
+    const to   = wine.vintage + rule.to_offset;
+    const now  = new Date().getFullYear();
+    if (now < from)    return 'young';
+    if (now <= to)     return 'ready';
+    if (now <= to + 3) return 'late';
+    return 'past';
+  })();
 
   const dispatch = createEventDispatcher();
 
@@ -39,9 +59,25 @@
   }
 </script>
 
-<article class="card" class:clickable={readonly && !inventoryMode} class:inv-mode={inventoryMode} on:click={() => readonly && !inventoryMode && dispatch('select', wine)}>
+<article class="card"
+  class:clickable={!selectable && readonly && !inventoryMode}
+  class:inv-mode={inventoryMode}
+  class:selectable
+  class:selected
+  on:click={() => selectable ? dispatch('toggle', wine.id) : (readonly && !inventoryMode && dispatch('select', wine))}
+>
+  {#if selectable}
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+    <div class="select-checkbox" on:click|stopPropagation={() => dispatch('toggle', wine.id)}>
+      {#if selected}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      {/if}
+    </div>
+  {/if}
   <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-  <div class="card-image" class:img-clickable={!inventoryMode} on:click|stopPropagation={() => !inventoryMode && dispatch('select', wine)}>
+  <div class="card-image" class:img-clickable={!inventoryMode && !selectable} on:click|stopPropagation={() => !inventoryMode && !selectable && dispatch('select', wine)}>
     {#if wine.image_url}
       <img src={wine.image_url} alt={wine.name} loading="lazy" />
     {:else}
@@ -71,6 +107,9 @@
       {#if wine.vintage}
         <span class="meta-chip">{wine.vintage}</span>
       {/if}
+      {#if drinkStatus}
+        <span class="drink-dot drink-{drinkStatus}" title={$t(`drink_${drinkStatus}`)}></span>
+      {/if}
       {#if wine.region}
         <span class="meta-chip">{wine.region}</span>
       {:else if wine.country}
@@ -89,6 +128,13 @@
       <div class="wine-props">
         {#if wine.body}<span class="prop">{bodyMap[wine.body] || wine.body}</span>{/if}
         {#if wine.acidity}<span class="prop">{acidMap[wine.acidity] || wine.acidity}</span>{/if}
+      </div>
+    {/if}
+
+    {#if wine.location}
+      <div class="location-chip">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        {wine.location}
       </div>
     {/if}
 
@@ -163,6 +209,42 @@
   }
   .card.clickable:hover {
     transform: translateY(-4px);
+  }
+  .card.selectable {
+    cursor: pointer;
+  }
+  .card.selected {
+    outline: 2.5px solid var(--primary);
+    box-shadow: 0 0 0 4px rgba(72,15,37,0.12);
+    transform: translateY(-2px);
+  }
+  .select-checkbox {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid white;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    transition: background 0.15s;
+  }
+  .card.selected .select-checkbox {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  .location-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 2px;
   }
   .card:hover .card-actions {
     opacity: 1;
@@ -256,6 +338,18 @@
     border-radius: 10px;
     border: 1px solid var(--border);
   }
+
+  .drink-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .drink-young { background: #5b9bd5; }
+  .drink-ready { background: #27ae60; }
+  .drink-late  { background: #e67e22; }
+  .drink-past  { background: #c0392b; }
   .rating {
     font-size: 14px;
     color: var(--accent);

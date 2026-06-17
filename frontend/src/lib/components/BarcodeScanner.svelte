@@ -1,56 +1,44 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { BrowserMultiFormatReader } from '@zxing/browser';
 
   const dispatch = createEventDispatcher();
 
   let videoEl;
-  let stream = null;
-  let animFrame = null;
-  let detector = null;
+  let controls = null;
   let errorMsg = '';
   let detected = false;
 
   onMount(async () => {
-    if (!('BarcodeDetector' in window)) {
-      errorMsg = 'Barcode-Scanner wird von diesem Browser nicht unterstützt. Bitte Barcode manuell eingeben.';
-      return;
-    }
     try {
-      detector = new window.BarcodeDetector({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
-      });
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      videoEl.srcObject = stream;
-      await videoEl.play();
-      scan();
+      const reader = new BrowserMultiFormatReader();
+      controls = await reader.decodeFromConstraints(
+        { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoEl,
+        (result, error) => {
+          if (result && !detected) {
+            detected = true;
+            stopCamera();
+            dispatch('scan', result.getText());
+          }
+        }
+      );
     } catch (e) {
-      errorMsg = 'Kamera konnte nicht gestartet werden. Bitte Kamerazugriff erlauben.';
+      if (e?.name === 'NotAllowedError') {
+        errorMsg = 'Kamerazugriff verweigert. Bitte in den Einstellungen erlauben.';
+      } else if (e?.name === 'NotFoundError') {
+        errorMsg = 'Keine Kamera gefunden.';
+      } else {
+        errorMsg = 'Kamera konnte nicht gestartet werden. Bitte Barcode manuell eingeben.';
+      }
     }
   });
 
-  async function scan() {
-    if (detected) return;
-    if (!videoEl || videoEl.readyState < 2) {
-      animFrame = requestAnimationFrame(scan);
-      return;
-    }
-    try {
-      const barcodes = await detector.detect(videoEl);
-      if (barcodes.length > 0 && !detected) {
-        detected = true;
-        stopCamera();
-        dispatch('scan', barcodes[0].rawValue);
-        return;
-      }
-    } catch {}
-    animFrame = requestAnimationFrame(scan);
-  }
-
   function stopCamera() {
-    if (animFrame) cancelAnimationFrame(animFrame);
-    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (controls) {
+      controls.stop();
+      controls = null;
+    }
   }
 
   onDestroy(stopCamera);
@@ -78,7 +66,7 @@
     {:else}
       <div class="video-wrap">
         <!-- svelte-ignore a11y-media-has-caption -->
-        <video bind:this={videoEl} class="video" playsinline muted></video>
+        <video bind:this={videoEl} class="video" playsinline muted autoplay></video>
         <div class="scan-frame">
           <div class="corner tl"></div>
           <div class="corner tr"></div>
@@ -154,6 +142,7 @@
   .scan-frame {
     position: absolute;
     inset: 0;
+    pointer-events: none;
   }
 
   .corner {
@@ -179,8 +168,8 @@
   }
 
   @keyframes scanMove {
-    0% { top: 20%; }
-    50% { top: 80%; }
+    0%   { top: 20%; }
+    50%  { top: 80%; }
     100% { top: 20%; }
   }
 
@@ -196,5 +185,6 @@
     text-align: center;
     padding: 32px 20px;
     font-size: 14px;
+    line-height: 1.5;
   }
 </style>
