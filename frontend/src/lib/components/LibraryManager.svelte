@@ -106,6 +106,9 @@
                 <div class="entry-top">
                   <span class="entry-name">{entry.name}</span>
                   <span class="type-badge type-{entry.type}">{typeLabel[entry.type] || entry.type}</span>
+                  {#if entry.quantity > 0}
+                    <span class="qty-badge">{entry.quantity}×</span>
+                  {/if}
                 </div>
                 {#if entry.producer}
                   <span class="entry-producer">{entry.producer}</span>
@@ -383,6 +386,18 @@
     font-weight: 600;
   }
   .meta-stars { font-size: 11px; color: var(--accent); }
+
+  .qty-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(44, 122, 75, 0.12);
+    color: #2c7a4b;
+    border: 1px solid rgba(44, 122, 75, 0.3);
+    padding: 1px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 
   .add-btn {
     flex-shrink: 0;

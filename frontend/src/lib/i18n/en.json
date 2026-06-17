@@ -138,6 +138,9 @@
   "branding_drink_window": "Drink window indicator",
   "branding_drink_window_desc": "Shows on each wine card whether a wine is ready to drink",
 
+  "branding_show_zero_qty": "Show 0-bottle wines in dashboard",
+  "branding_show_zero_qty_desc": "Also shows wines with no bottles in the overview (otherwise only visible in library)",
+
   "drink_young": "Too young",
   "drink_ready": "Drink now",
   "drink_late": "Past peak",

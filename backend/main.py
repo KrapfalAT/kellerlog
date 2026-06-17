@@ -90,36 +90,11 @@ def _valid_image_header(header: bytes) -> bool:
     # HEIC/HEIF: ISO Base Media File Format — ftyp box at offset 4
     return len(header) >= 8 and header[4:8] == b'ftyp'
 
-class WineModel(Base):
-    __tablename__ = "wines"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    producer = Column(String, default="")
-    vintage = Column(Integer, nullable=True)
-    grape = Column(String, default="")
-    region = Column(String, default="")
-    country = Column(String, default="")
-    type = Column(String, default="red")
-    alcohol = Column(Float, nullable=True)
-    rating = Column(Integer, nullable=True)
-    quantity = Column(Integer, default=1)
-    notes = Column(String, default="")
-    price = Column(Float, nullable=True)
-    barcode = Column(String, default="")
-    image_url = Column(String, default="")
-    body = Column(String, default="")
-    acidity = Column(String, default="")
-    pairings = Column(String, default="")
-    description = Column(String, default="")
-    wineapi_id = Column(String, default="")
-    by_glass = Column(Boolean, default=False)
-    price_per_glass = Column(Float, nullable=True)
-    location = Column(String, default="")
-    added_at = Column(DateTime, default=datetime.utcnow)
-
+# ── ORM Models ────────────────────────────────────────────────────────────────
 
 class WineLibrary(Base):
+    """Unified wine table — library entries with quantity > 0 appear in dashboard."""
     __tablename__ = "wine_library"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -143,6 +118,11 @@ class WineLibrary(Base):
     wineapi_id = Column(String, default="")
     saved_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    # Stock fields (merged from former wines table)
+    quantity = Column(Integer, default=0)
+    by_glass = Column(Boolean, default=False)
+    price_per_glass = Column(Float, nullable=True)
+    location = Column(String, default="")
 
 
 class User(Base):
@@ -172,6 +152,7 @@ class AppSettings(Base):
     logo_url = Column(String, default="")
     show_drink_window = Column(Boolean, default=True)
     kiosk_show_drink_window = Column(Boolean, default=False)
+    show_zero_quantity_in_dashboard = Column(Boolean, default=False)
 
 
 class Grape(Base):
@@ -204,7 +185,7 @@ class CustomField(Base):
 class WineCustomValue(Base):
     __tablename__ = "wine_custom_values"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    wine_id = Column(Integer, nullable=False)
+    wine_id = Column(Integer, nullable=False)  # references wine_library.id
     field_key = Column(String, nullable=False)
     value = Column(String, default="")
 
@@ -212,37 +193,37 @@ class WineCustomValue(Base):
 Base.metadata.create_all(bind=engine)
 
 
-def _ensure_columns():
+# ── Migrations ────────────────────────────────────────────────────────────────
+
+def _migrate_library_columns():
+    """Add stock columns to wine_library if missing (for existing installs)."""
     new_cols = [
-        ("body", "TEXT DEFAULT ''"),
-        ("acidity", "TEXT DEFAULT ''"),
-        ("pairings", "TEXT DEFAULT ''"),
-        ("description", "TEXT DEFAULT ''"),
-        ("wineapi_id", "TEXT DEFAULT ''"),
-        ("by_glass", "INTEGER DEFAULT 0"),
+        ("quantity",        "INTEGER DEFAULT 0"),
+        ("by_glass",        "INTEGER DEFAULT 0"),
         ("price_per_glass", "REAL"),
-        ("location", "TEXT DEFAULT ''"),
+        ("location",        "TEXT DEFAULT ''"),
     ]
     with engine.connect() as conn:
-        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(wines)"))}
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(wine_library)"))}
         for col_name, col_def in new_cols:
             if col_name not in existing:
-                conn.execute(text(f"ALTER TABLE wines ADD COLUMN {col_name} {col_def}"))
+                conn.execute(text(f"ALTER TABLE wine_library ADD COLUMN {col_name} {col_def}"))
         conn.commit()
 
-_ensure_columns()
+_migrate_library_columns()
 
 
 def _migrate_settings():
     new_cols = [
-        ("kiosk_show_map", "INTEGER DEFAULT 1"),
-        ("primary_color",  "TEXT DEFAULT '#480f25'"),
-        ("dark_mode",      "INTEGER DEFAULT 0"),
-        ("app_title",      "TEXT DEFAULT 'KellerLog'"),
-        ("app_subtitle",   "TEXT DEFAULT 'Meine Weinsammlung'"),
-        ("logo_url",       "TEXT DEFAULT ''"),
-        ("show_drink_window", "INTEGER DEFAULT 1"),
-        ("kiosk_show_drink_window", "INTEGER DEFAULT 0"),
+        ("kiosk_show_map",                   "INTEGER DEFAULT 1"),
+        ("primary_color",                    "TEXT DEFAULT '#480f25'"),
+        ("dark_mode",                        "INTEGER DEFAULT 0"),
+        ("app_title",                        "TEXT DEFAULT 'KellerLog'"),
+        ("app_subtitle",                     "TEXT DEFAULT 'Meine Weinsammlung'"),
+        ("logo_url",                         "TEXT DEFAULT ''"),
+        ("show_drink_window",                "INTEGER DEFAULT 1"),
+        ("kiosk_show_drink_window",          "INTEGER DEFAULT 0"),
+        ("show_zero_quantity_in_dashboard",  "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.execute(text("PRAGMA table_info(app_settings)"))}
@@ -272,6 +253,100 @@ def _migrate_users():
         conn.commit()
 
 _migrate_users()
+
+
+def _migrate_to_unified():
+    """One-time migration: merge wines table into wine_library, then archive it."""
+    with engine.connect() as conn:
+        tables = {row[0] for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))}
+        if 'wines' not in tables:
+            return  # Already migrated or fresh install
+
+        wines_rows = conn.execute(text("SELECT * FROM wines")).mappings().all()
+        lib_rows = conn.execute(text("SELECT * FROM wine_library")).mappings().all()
+
+        # Build lookup maps for matching
+        lib_by_barcode: dict = {}
+        lib_by_wineapi: dict = {}
+        lib_by_name_producer: dict = {}
+        for lib in lib_rows:
+            if lib['barcode']:
+                lib_by_barcode[lib['barcode']] = lib['id']
+            if lib['wineapi_id']:
+                lib_by_wineapi[lib['wineapi_id']] = lib['id']
+            key = (lib['name'].lower(), (lib['producer'] or '').lower())
+            lib_by_name_producer[key] = lib['id']
+
+        id_map: dict = {}  # old wines.id → wine_library.id
+
+        for wine in wines_rows:
+            lib_id = None
+            if wine['barcode'] and wine['barcode'] in lib_by_barcode:
+                lib_id = lib_by_barcode[wine['barcode']]
+            elif wine.get('wineapi_id') and wine['wineapi_id'] in lib_by_wineapi:
+                lib_id = lib_by_wineapi[wine['wineapi_id']]
+            else:
+                key = (wine['name'].lower(), (wine.get('producer') or '').lower())
+                lib_id = lib_by_name_producer.get(key)
+
+            if lib_id:
+                conn.execute(text("""
+                    UPDATE wine_library SET
+                        quantity        = :qty,
+                        by_glass        = :bg,
+                        price_per_glass = :ppg,
+                        location        = :loc
+                    WHERE id = :id
+                """), {
+                    'qty': wine['quantity'], 'bg': wine.get('by_glass', 0),
+                    'ppg': wine.get('price_per_glass'), 'loc': wine.get('location', ''),
+                    'id': lib_id,
+                })
+            else:
+                conn.execute(text("""
+                    INSERT INTO wine_library
+                        (name, producer, vintage, grape, region, country, type, alcohol, rating,
+                         notes, price, barcode, image_url, body, acidity, pairings, description,
+                         wineapi_id, saved_at, updated_at, quantity, by_glass, price_per_glass, location)
+                    VALUES
+                        (:name, :producer, :vintage, :grape, :region, :country, :type, :alcohol, :rating,
+                         :notes, :price, :barcode, :image_url, :body, :acidity, :pairings, :description,
+                         :wineapi_id, :saved_at, :updated_at, :qty, :bg, :ppg, :loc)
+                """), {
+                    'name': wine['name'], 'producer': wine.get('producer', ''),
+                    'vintage': wine.get('vintage'), 'grape': wine.get('grape', ''),
+                    'region': wine.get('region', ''), 'country': wine.get('country', ''),
+                    'type': wine.get('type', 'red'), 'alcohol': wine.get('alcohol'),
+                    'rating': wine.get('rating'), 'notes': wine.get('notes', ''),
+                    'price': wine.get('price'), 'barcode': wine.get('barcode', ''),
+                    'image_url': wine.get('image_url', ''), 'body': wine.get('body', ''),
+                    'acidity': wine.get('acidity', ''), 'pairings': wine.get('pairings', ''),
+                    'description': wine.get('description', ''), 'wineapi_id': wine.get('wineapi_id', ''),
+                    'saved_at': wine.get('added_at', datetime.utcnow()),
+                    'updated_at': datetime.utcnow(),
+                    'qty': wine['quantity'], 'bg': wine.get('by_glass', 0),
+                    'ppg': wine.get('price_per_glass'), 'loc': wine.get('location', ''),
+                })
+                lib_id = conn.execute(text("SELECT last_insert_rowid()")).scalar()
+
+            id_map[wine['id']] = lib_id
+
+        conn.commit()
+
+        # Re-map custom values from old wines.id → wine_library.id
+        for old_id, new_id in id_map.items():
+            conn.execute(text(
+                "UPDATE wine_custom_values SET wine_id = :new WHERE wine_id = :old"
+            ), {'new': new_id, 'old': old_id})
+        conn.commit()
+
+        # Archive old wines table
+        conn.execute(text("ALTER TABLE wines RENAME TO wines_archived"))
+        conn.commit()
+
+        print(f"✓ Unified library migration complete — {len(id_map)} wines merged", flush=True)
+
+_migrate_to_unified()
 
 
 def _init_users():
@@ -328,7 +403,7 @@ def _init_grapes():
     db = SessionLocal()
     try:
         if db.query(Grape).count() == 0:
-            for (grape_str,) in db.query(WineModel.grape).filter(WineModel.grape != "").distinct().all():
+            for (grape_str,) in db.query(WineLibrary.grape).filter(WineLibrary.grape != "").distinct().all():
                 for part in grape_str.split(','):
                     name = part.strip()
                     if name and not db.query(Grape).filter(func.lower(Grape.name) == name.lower()).first():
@@ -454,34 +529,10 @@ class WineResponse(BaseModel):
     by_glass: bool
     price_per_glass: Optional[float]
     location: str
-    added_at: datetime
-    custom_values: dict = {}
-
-    model_config = {"from_attributes": True}
-
-
-class WineLibraryResponse(BaseModel):
-    id: int
-    name: str
-    producer: str
-    vintage: Optional[int]
-    grape: str
-    region: str
-    country: str
-    type: str
-    alcohol: Optional[float]
-    rating: Optional[int]
-    notes: str
-    price: Optional[float]
-    barcode: str
-    image_url: str
-    body: str
-    acidity: str
-    pairings: str
-    description: str
-    wineapi_id: str
     saved_at: datetime
     updated_at: datetime
+    added_at: datetime  # alias for saved_at — kept for frontend compatibility
+    custom_values: dict = {}
 
     model_config = {"from_attributes": True}
 
@@ -524,6 +575,7 @@ class SettingsUpdate(BaseModel):
     logo_url: Optional[str] = None
     show_drink_window: Optional[bool] = None
     kiosk_show_drink_window: Optional[bool] = None
+    show_zero_quantity_in_dashboard: Optional[bool] = None
 
 
 class SettingsResponse(BaseModel):
@@ -539,6 +591,7 @@ class SettingsResponse(BaseModel):
     logo_url: str
     show_drink_window: bool
     kiosk_show_drink_window: bool
+    show_zero_quantity_in_dashboard: bool
     model_config = {"from_attributes": True}
 
 
@@ -654,9 +707,10 @@ def _parse_wineapi(data: dict) -> dict:
     }
 
 
-def _wine_to_dict(wine: WineModel, custom_values: Optional[dict] = None) -> dict:
-    d = {c.name: getattr(wine, c.name) for c in WineModel.__table__.columns}
+def _wine_to_dict(wine: WineLibrary, custom_values: Optional[dict] = None) -> dict:
+    d = {c.name: getattr(wine, c.name) for c in WineLibrary.__table__.columns}
     d['custom_values'] = custom_values or {}
+    d['added_at'] = wine.saved_at  # alias for frontend compatibility
     return d
 
 
@@ -675,39 +729,6 @@ def _save_custom_values(db: Session, wine_id: int, values: dict):
     for key, val in values.items():
         if val is not None and str(val).strip():
             db.add(WineCustomValue(wine_id=wine_id, field_key=key, value=str(val).strip()))
-    db.commit()
-
-
-_LIB_STR = ["name", "producer", "grape", "region", "country", "type", "notes",
-            "barcode", "image_url", "body", "acidity", "pairings", "description", "wineapi_id"]
-_LIB_OPT = ["vintage", "rating", "alcohol", "price"]
-
-
-def _upsert_library(db: Session, data: dict) -> None:
-    entry = None
-    if data.get("barcode"):
-        entry = db.query(WineLibrary).filter(WineLibrary.barcode == data["barcode"]).first()
-    if not entry and data.get("wineapi_id"):
-        entry = db.query(WineLibrary).filter(WineLibrary.wineapi_id == data["wineapi_id"]).first()
-    if not entry:
-        name_q = (data.get("name") or "").lower()
-        producer_q = (data.get("producer") or "").lower()
-        for c in db.query(WineLibrary).filter(func.lower(WineLibrary.name) == name_q).all():
-            if (c.producer or "").lower() == producer_q:
-                entry = c
-                break
-
-    if entry:
-        for f in _LIB_STR:
-            setattr(entry, f, data.get(f) or "")
-        for f in _LIB_OPT:
-            setattr(entry, f, data.get(f))
-        entry.updated_at = datetime.utcnow()
-    else:
-        kwargs = {f: data.get(f) or "" for f in _LIB_STR}
-        kwargs.update({f: data.get(f) for f in _LIB_OPT})
-        entry = WineLibrary(**kwargs)
-        db.add(entry)
     db.commit()
 
 
@@ -770,7 +791,6 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), p
     if data.role is not None:
         if data.role not in ("admin", "viewer"):
             raise HTTPException(status_code=400, detail="Ungültige Rolle")
-        # Prevent removing the last admin
         if user.role == "admin" and data.role != "admin":
             admin_count = db.query(User).filter(User.role == "admin").count()
             if admin_count <= 1:
@@ -902,11 +922,16 @@ def delete_custom_field(field_id: int, db: Session = Depends(get_db), _=Depends(
     return {"ok": True}
 
 
-# ── Wine CRUD ─────────────────────────────────────────────────────────────────
+# ── Wine CRUD (unified library) ───────────────────────────────────────────────
 
 @app.get("/wines", response_model=List[WineResponse])
 def get_wines(db: Session = Depends(get_db)):
-    wines = db.query(WineModel).order_by(WineModel.added_at.desc()).all()
+    settings = db.get(AppSettings, 1)
+    show_zero = settings and settings.show_zero_quantity_in_dashboard
+    query = db.query(WineLibrary)
+    if not show_zero:
+        query = query.filter(WineLibrary.quantity > 0)
+    wines = query.order_by(WineLibrary.saved_at.desc()).all()
     cv_map = _load_cvs(db, [w.id for w in wines])
     return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
@@ -914,11 +939,10 @@ def get_wines(db: Session = Depends(get_db)):
 @app.post("/wines", response_model=WineResponse)
 def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
     wine_data = wine.model_dump(exclude={'custom_values'})
-    db_wine = WineModel(**wine_data)
+    db_wine = WineLibrary(**wine_data)
     db.add(db_wine)
     db.commit()
     db.refresh(db_wine)
-    _upsert_library(db, wine_data)
     _save_grape(db, wine.grape)
     if wine.custom_values:
         _save_custom_values(db, db_wine.id, wine.custom_values)
@@ -928,7 +952,7 @@ def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(requi
 
 @app.get("/wines/{wine_id}", response_model=WineResponse)
 def get_wine(wine_id: int, db: Session = Depends(get_db)):
-    wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
+    wine = db.get(WineLibrary, wine_id)
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
     cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).all()}
@@ -937,15 +961,14 @@ def get_wine(wine_id: int, db: Session = Depends(get_db)):
 
 @app.put("/wines/{wine_id}", response_model=WineResponse)
 def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
-    wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
+    wine = db.get(WineLibrary, wine_id)
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
     for field, value in wine_update.model_dump(exclude_unset=True, exclude={'custom_values'}).items():
         setattr(wine, field, value)
+    wine.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(wine)
-    skip = {"id", "quantity", "added_at"}
-    _upsert_library(db, {c.name: getattr(wine, c.name) for c in WineModel.__table__.columns if c.name not in skip})
     _save_grape(db, wine.grape)
     if wine_update.custom_values is not None:
         _save_custom_values(db, wine_id, wine_update.custom_values)
@@ -960,17 +983,18 @@ def batch_update_wines(data: WineBatchUpdate, db: Session = Depends(get_db), _=D
     updates = data.updates.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="Keine Felder zum Aktualisieren")
-    wines = db.query(WineModel).filter(WineModel.id.in_(data.ids)).all()
+    wines = db.query(WineLibrary).filter(WineLibrary.id.in_(data.ids)).all()
     for wine in wines:
         for field, value in updates.items():
             setattr(wine, field, value)
+        wine.updated_at = datetime.utcnow()
     db.commit()
     return {"updated": len(wines)}
 
 
 @app.delete("/wines/{wine_id}")
 def delete_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
-    wine = db.query(WineModel).filter(WineModel.id == wine_id).first()
+    wine = db.get(WineLibrary, wine_id)
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
     db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).delete()
@@ -981,9 +1005,11 @@ def delete_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_a
 
 # ── Library endpoints ─────────────────────────────────────────────────────────
 
-@app.get("/library", response_model=List[WineLibraryResponse])
+@app.get("/library", response_model=List[WineResponse])
 def get_library(db: Session = Depends(get_db)):
-    return db.query(WineLibrary).order_by(WineLibrary.saved_at.desc()).all()
+    wines = db.query(WineLibrary).order_by(WineLibrary.saved_at.desc()).all()
+    cv_map = _load_cvs(db, [w.id for w in wines])
+    return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
 
 @app.get("/library/search")
@@ -1009,55 +1035,34 @@ def search_library(q: str, db: Session = Depends(get_db)):
             "notes": e.notes, "price": e.price, "barcode": e.barcode,
             "image_url": e.image_url, "body": e.body, "acidity": e.acidity,
             "pairings": e.pairings, "description": e.description,
-            "wineapi_id": e.wineapi_id,
+            "wineapi_id": e.wineapi_id, "quantity": e.quantity,
         }
         for e in rows
     ]
 
 
-@app.put("/library/{entry_id}")
+@app.put("/library/{entry_id}", response_model=WineResponse)
 def update_library_entry(entry_id: int, data: WineUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
-    entry = db.query(WineLibrary).filter(WineLibrary.id == entry_id).first()
+    entry = db.get(WineLibrary, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Eintrag nicht gefunden")
-
-    lib_fields = ['name', 'producer', 'vintage', 'grape', 'region', 'country', 'type',
-                  'alcohol', 'rating', 'notes', 'price', 'barcode', 'image_url',
-                  'body', 'acidity', 'pairings', 'description']
-    for field in lib_fields:
-        val = getattr(data, field, None)
-        if val is not None:
-            setattr(entry, field, val)
+    for field, value in data.model_dump(exclude_unset=True, exclude={'custom_values'}).items():
+        setattr(entry, field, value)
     entry.updated_at = datetime.utcnow()
-
-    # Propagate to matching wines (skip quantity / glass fields)
-    propagate_fields = ['name', 'producer', 'vintage', 'grape', 'region', 'country',
-                        'type', 'alcohol', 'rating', 'notes', 'price', 'image_url',
-                        'body', 'acidity', 'pairings', 'description']
-    matched = []
-    if entry.barcode:
-        matched = db.query(WineModel).filter(WineModel.barcode == entry.barcode).all()
-    if not matched and entry.wineapi_id:
-        matched = db.query(WineModel).filter(WineModel.wineapi_id == entry.wineapi_id).all()
-    if not matched and entry.name:
-        matched = db.query(WineModel).filter(
-            func.lower(WineModel.name) == entry.name.lower()
-        ).all()
-    for wine in matched:
-        for field in propagate_fields:
-            val = getattr(data, field, None)
-            if val is not None:
-                setattr(wine, field, val)
-
     db.commit()
-    return {"ok": True, "updated_wines": len(matched)}
+    db.refresh(entry)
+    if data.custom_values is not None:
+        _save_custom_values(db, entry_id, data.custom_values)
+    cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == entry_id).all()}
+    return _wine_to_dict(entry, cvs)
 
 
 @app.delete("/library/{entry_id}")
 def delete_library_entry(entry_id: int, db: Session = Depends(get_db), _=Depends(require_auth)):
-    entry = db.query(WineLibrary).filter(WineLibrary.id == entry_id).first()
+    entry = db.get(WineLibrary, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Eintrag nicht gefunden")
+    db.query(WineCustomValue).filter(WineCustomValue.wine_id == entry_id).delete()
     db.delete(entry)
     db.commit()
     return {"ok": True}
@@ -1134,7 +1139,6 @@ async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
 
 @app.get("/lookup/{barcode}")
 async def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(require_login)):
-    # Check local library first
     lib = db.query(WineLibrary).filter(WineLibrary.barcode == barcode).first()
     if lib:
         return {
@@ -1145,10 +1149,9 @@ async def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(
             "notes": lib.notes, "price": lib.price, "barcode": lib.barcode,
             "image_url": lib.image_url, "body": lib.body, "acidity": lib.acidity,
             "pairings": lib.pairings, "description": lib.description,
-            "wineapi_id": lib.wineapi_id,
+            "wineapi_id": lib.wineapi_id, "quantity": lib.quantity,
         }
 
-    # Open Food Facts lookup
     try:
         async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "KellerLog/1.0"}) as client:
             resp = await client.get(f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json")
@@ -1210,7 +1213,7 @@ _EXPORT_FIELDS = [
 
 @app.get("/export/json")
 def export_json(db: Session = Depends(get_db), _=Depends(require_login)):
-    wines = db.query(WineModel).order_by(WineModel.added_at.desc()).all()
+    wines = db.query(WineLibrary).order_by(WineLibrary.saved_at.desc()).all()
     data = [{f: getattr(w, f, None) for f in _EXPORT_FIELDS} for w in wines]
     return Response(
         content=json.dumps(data, indent=2, ensure_ascii=False),
@@ -1221,7 +1224,7 @@ def export_json(db: Session = Depends(get_db), _=Depends(require_login)):
 
 @app.get("/export/csv")
 def export_csv(db: Session = Depends(get_db), _=Depends(require_login)):
-    wines = db.query(WineModel).order_by(WineModel.added_at.desc()).all()
+    wines = db.query(WineLibrary).order_by(WineLibrary.saved_at.desc()).all()
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=_EXPORT_FIELDS)
     writer.writeheader()
@@ -1239,10 +1242,10 @@ async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_d
     content = await file.read()
     created = skipped = 0
 
-    def _make_wine(row: dict) -> WineModel:
+    def _make_entry(row: dict) -> WineLibrary:
         def _int(v): return int(v) if str(v).strip() not in ('', 'None', 'null') else None
         def _float(v): return float(v) if str(v).strip() not in ('', 'None', 'null') else None
-        return WineModel(
+        return WineLibrary(
             name=row.get('name', '').strip(),
             producer=row.get('producer', '') or '',
             vintage=_int(row.get('vintage')),
@@ -1277,14 +1280,14 @@ async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_d
         if not name:
             continue
         producer = (row.get('producer') or '').strip()
-        exists = db.query(WineModel).filter(
-            func.lower(WineModel.name) == name.lower(),
-            func.lower(WineModel.producer) == producer.lower(),
+        exists = db.query(WineLibrary).filter(
+            func.lower(WineLibrary.name) == name.lower(),
+            func.lower(WineLibrary.producer) == producer.lower(),
         ).first()
         if exists:
             skipped += 1
             continue
-        db.add(_make_wine(row))
+        db.add(_make_entry(row))
         created += 1
 
     db.commit()
@@ -1293,7 +1296,7 @@ async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_d
 
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
-    wines = db.query(WineModel).all()
+    wines = db.query(WineLibrary).filter(WineLibrary.quantity > 0).all()
     total_bottles = sum(w.quantity for w in wines)
     type_counts: dict = {}
     for w in wines:

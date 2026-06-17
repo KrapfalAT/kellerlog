@@ -138,6 +138,9 @@
   "branding_drink_window": "Trinkreife-Anzeige",
   "branding_drink_window_desc": "Zeigt auf der Weinkarte an ob ein Wein trinkfertig ist",
 
+  "branding_show_zero_qty": "0-Flaschen im Dashboard zeigen",
+  "branding_show_zero_qty_desc": "Zeigt auch Weine ohne Flaschen auf der Übersicht (sonst nur in der Bibliothek sichtbar)",
+
   "drink_young": "Noch zu jung",
   "drink_ready": "Jetzt optimal",
   "drink_late": "Am Abklingen",

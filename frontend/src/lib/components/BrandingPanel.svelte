@@ -6,8 +6,9 @@
 
   const dispatch = createEventDispatcher();
 
-  let darkMode        = $branding.darkMode ?? false;
-  let showDrinkWindow = $branding.showDrinkWindow ?? true;
+  let darkMode                    = $branding.darkMode ?? false;
+  let showDrinkWindow             = $branding.showDrinkWindow ?? true;
+  let showZeroQuantityInDashboard = $branding.showZeroQuantityInDashboard ?? false;
   let color        = $branding.primaryColor;
   let title        = $branding.title;
   let subtitle     = $branding.subtitle;
@@ -15,8 +16,9 @@
   let uploadingLogo = false;
   let logoInput;
 
-  function onDarkMode()        { branding.save({ darkMode }); }
-  function onShowDrinkWindow() { branding.save({ showDrinkWindow }); }
+  function onDarkMode()                    { branding.save({ darkMode }); }
+  function onShowDrinkWindow()             { branding.save({ showDrinkWindow }); }
+  function onShowZeroQuantityInDashboard() { branding.save({ showZeroQuantityInDashboard }); }
 
   function onColor(e) {
     color = e.target.value;
@@ -53,8 +55,9 @@
   }
 
   function reset() {
-    darkMode        = DEFAULTS.darkMode;
-    showDrinkWindow = DEFAULTS.showDrinkWindow;
+    darkMode                    = DEFAULTS.darkMode;
+    showDrinkWindow             = DEFAULTS.showDrinkWindow;
+    showZeroQuantityInDashboard = DEFAULTS.showZeroQuantityInDashboard;
     color         = DEFAULTS.primaryColor;
     title         = DEFAULTS.title;
     subtitle      = DEFAULTS.subtitle;
@@ -101,6 +104,14 @@
           </div>
           <input type="checkbox" bind:checked={showDrinkWindow} on:change={onShowDrinkWindow} class="toggle-input" />
           <span class="toggle-track" class:on={showDrinkWindow}><span class="toggle-thumb"></span></span>
+        </label>
+        <label class="toggle-row">
+          <div>
+            <div class="toggle-label">{$t('branding_show_zero_qty')}</div>
+            <div class="toggle-desc">{$t('branding_show_zero_qty_desc')}</div>
+          </div>
+          <input type="checkbox" bind:checked={showZeroQuantityInDashboard} on:change={onShowZeroQuantityInDashboard} class="toggle-input" />
+          <span class="toggle-track" class:on={showZeroQuantityInDashboard}><span class="toggle-thumb"></span></span>
         </label>
       </section>
 
