@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { version } from '../../package.json';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, updateLibraryEntry, getDrinkRules, batchUpdateWines, getCustomFields } from '$lib/api.js';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, updateLibraryEntry, getDrinkRules, batchUpdateWines, getCustomFields, getMe, setMyLanguage } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
@@ -350,9 +350,11 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     branding.init();
     load();
+    const me = await getMe();
+    if (me?.language) lang.set(me.language);
   });
 
   function saveAdminKey() {
@@ -483,8 +485,8 @@
               <div class="menu-divider"></div>
               <div class="menu-section-label">{$t('menu_language')}</div>
               <div class="lang-row">
-                <button class="lang-btn" class:lang-active={$lang === 'de'} on:click={() => lang.set('de')}>🇩🇪 Deutsch</button>
-                <button class="lang-btn" class:lang-active={$lang === 'en'} on:click={() => lang.set('en')}>🇬🇧 English</button>
+                <button class="lang-btn" class:lang-active={$lang === 'de'} on:click={() => { lang.set('de'); setMyLanguage('de').catch(() => {}); }}>🇩🇪 Deutsch</button>
+                <button class="lang-btn" class:lang-active={$lang === 'en'} on:click={() => { lang.set('en'); setMyLanguage('en').catch(() => {}); }}>🇬🇧 English</button>
               </div>
               {#if $isAdmin}
               <div class="menu-divider"></div>

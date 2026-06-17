@@ -34,6 +34,15 @@ export async function getMe() {
   return r.json();
 }
 
+export async function setMyLanguage(language) {
+  const r = await fetch(`${BASE}/auth/me/language`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ language }),
+  });
+  if (!r.ok) throw new Error('Fehler');
+}
+
 export async function getUsers() {
   const r = await fetch(`${BASE}/auth/users`, { headers: authHeaders() });
   if (r.status === 401) throw new Error('UNAUTHORIZED');

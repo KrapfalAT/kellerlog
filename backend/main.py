@@ -152,6 +152,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, default="viewer")  # "admin" or "viewer"
+    language = Column(String, default="en")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -261,6 +262,16 @@ def _migrate_drink_rules():
         conn.commit()
 
 _migrate_drink_rules()
+
+
+def _migrate_users():
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(users)"))}
+        if "language" not in existing:
+            conn.execute(text("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'"))
+        conn.commit()
+
+_migrate_users()
 
 
 def _init_users():
@@ -489,11 +500,13 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
+    language: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
     username: str
     role: str
+    language: str = "en"
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -715,7 +728,20 @@ def get_me(payload=Depends(require_login), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
     if not user:
         raise HTTPException(status_code=404)
-    return {"id": user.id, "username": user.username, "role": user.role}
+    return {"id": user.id, "username": user.username, "role": user.role, "language": user.language or "en"}
+
+
+@app.put("/auth/me/language")
+def set_my_language(data: dict, payload=Depends(require_login), db: Session = Depends(get_db)):
+    lang = data.get("language", "en")
+    if lang not in ("de", "en"):
+        raise HTTPException(status_code=400, detail="Ungültige Sprache")
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=404)
+    user.language = lang
+    db.commit()
+    return {"ok": True}
 
 
 @app.get("/auth/users", response_model=List[UserResponse])
