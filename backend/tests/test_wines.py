@@ -121,49 +121,44 @@ WINE_BARCODE = {
 
 
 def test_barcode_description_persists_after_delete(client, admin_headers):
+    # Unified model: qty=0 keeps entry in library; DELETE removes it entirely.
+    # This test verifies that setting qty=0 hides from dashboard but keeps in library.
+
     # 1. Wein per Barcode hinzufügen
     r = client.post("/wines", json=WINE_BARCODE, headers=admin_headers)
     assert r.status_code == 200
     wine_id = r.json()["id"]
     assert r.json()["barcode"] == BARCODE
 
-    # 2. Description ändern → wird auch in WineLibrary geschrieben
+    # 2. Description ändern
     description = "Eleganter Bordeaux mit Noten von Cassis, Zedernholz und einem langen Abgang."
     r = client.put(f"/wines/{wine_id}", json={"description": description}, headers=admin_headers)
     assert r.status_code == 200
     assert r.json()["description"] == description
 
-    # 3. Wein aus dem Dashboard entfernen (wines-Tabelle), WineLibrary bleibt erhalten
-    r = client.delete(f"/wines/{wine_id}", headers=admin_headers)
+    # 3. Menge auf 0 setzen → verschwindet aus Dashboard, bleibt in Library
+    r = client.put(f"/wines/{wine_id}", json={"quantity": 0}, headers=admin_headers)
     assert r.status_code == 200
     ids = [w["id"] for w in client.get("/wines").json()]
-    assert wine_id not in ids
+    assert wine_id not in ids  # Default-Setting: qty=0 nicht im Dashboard
 
-    # 4. Barcode nochmal scannen → trifft lokale Library, description muss noch da sein
+    # 4. In der Library ist er noch vorhanden, Description erhalten
+    lib = client.get("/library").json()
+    entry = next((e for e in lib if e["id"] == wine_id), None)
+    assert entry is not None
+    assert entry["description"] == description
+    assert entry["quantity"] == 0
+
+    # 5. Barcode-Lookup trifft lokalen Eintrag
     r = client.get(f"/lookup/{BARCODE}", headers=admin_headers)
     assert r.status_code == 200
     lookup = r.json()
     assert lookup is not None
     assert lookup["source"] == "local"
-    assert lookup["description"] == description
     assert lookup["name"] == WINE_BARCODE["name"]
 
-    # 5. Wein mit den Lookup-Daten erneut anlegen
-    r = client.post("/wines", json={
-        "name": lookup["name"],
-        "producer": lookup["producer"],
-        "vintage": lookup["vintage"],
-        "type": lookup["type"],
-        "grape": lookup.get("grape", ""),
-        "region": lookup.get("region", ""),
-        "country": lookup.get("country", ""),
-        "quantity": 1,
-        "barcode": BARCODE,
-        "description": lookup["description"],
-    }, headers=admin_headers)
+    # 6. Menge erhöhen → wieder im Dashboard sichtbar
+    r = client.put(f"/wines/{wine_id}", json={"quantity": 2}, headers=admin_headers)
     assert r.status_code == 200
-    new_wine = r.json()
-
-    # 6. Description ist im neu angelegten Wein vorhanden
-    assert new_wine["description"] == description
-    assert new_wine["barcode"] == BARCODE
+    ids = [w["id"] for w in client.get("/wines").json()]
+    assert wine_id in ids

@@ -93,8 +93,8 @@
         <p class="count">{filtered.length} Eintra{filtered.length !== 1 ? 'ge' : 'g'}</p>
         <ul class="entries">
           {#each filtered as entry (entry.id)}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <li class="entry" on:click={() => dispatch('selectEntry', entry)}>
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <li class="entry">
               <div class="entry-thumb">
                 {#if entry.image_url}
                   <img src={entry.image_url} alt={entry.name} />
@@ -106,6 +106,9 @@
                 <div class="entry-top">
                   <span class="entry-name">{entry.name}</span>
                   <span class="type-badge type-{entry.type}">{typeLabel[entry.type] || entry.type}</span>
+                  {#if entry.quantity > 0}
+                    <span class="qty-badge">{entry.quantity}×</span>
+                  {/if}
                 </div>
                 {#if entry.producer}
                   <span class="entry-producer">{entry.producer}</span>
@@ -302,11 +305,8 @@
     gap: 12px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--border);
-    transition: background 0.12s;
-    cursor: pointer;
   }
   .entry:last-child { border-bottom: none; }
-  .entry:hover { background: var(--surface-2); }
 
   .entry-thumb {
     width: 44px;
@@ -383,6 +383,18 @@
     font-weight: 600;
   }
   .meta-stars { font-size: 11px; color: var(--accent); }
+
+  .qty-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(44, 122, 75, 0.12);
+    color: #2c7a4b;
+    border: 1px solid rgba(44, 122, 75, 0.3);
+    padding: 1px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 
   .add-btn {
     flex-shrink: 0;

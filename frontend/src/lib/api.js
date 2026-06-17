@@ -140,7 +140,7 @@ export async function getWineDetails(wineapiId) {
 }
 
 export async function lookupBarcode(barcode) {
-  const r = await fetch(`${BASE}/lookup/${barcode}`);
+  const r = await fetch(`${BASE}/lookup/${barcode}`, { headers: authHeaders() });
   if (!r.ok) return null;
   return r.json();
 }

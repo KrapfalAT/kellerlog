@@ -10,6 +10,7 @@ export const DEFAULTS = {
   subtitle: 'Meine Weinsammlung',
   logoUrl: '',
   showDrinkWindow: true,
+  showZeroQuantityInDashboard: false,
 };
 
 function hexToHsl(hex) {
@@ -56,23 +57,25 @@ export function applyBranding(b) {
 
 function fromSettings(s) {
   return {
-    primaryColor:    s.primary_color      ?? DEFAULTS.primaryColor,
-    darkMode:        s.dark_mode          ?? DEFAULTS.darkMode,
-    title:           s.app_title          ?? DEFAULTS.title,
-    subtitle:        s.app_subtitle       ?? DEFAULTS.subtitle,
-    logoUrl:         s.logo_url           ?? DEFAULTS.logoUrl,
-    showDrinkWindow: s.show_drink_window  ?? DEFAULTS.showDrinkWindow,
+    primaryColor:                 s.primary_color                      ?? DEFAULTS.primaryColor,
+    darkMode:                     s.dark_mode                          ?? DEFAULTS.darkMode,
+    title:                        s.app_title                          ?? DEFAULTS.title,
+    subtitle:                     s.app_subtitle                       ?? DEFAULTS.subtitle,
+    logoUrl:                      s.logo_url                           ?? DEFAULTS.logoUrl,
+    showDrinkWindow:              s.show_drink_window                  ?? DEFAULTS.showDrinkWindow,
+    showZeroQuantityInDashboard:  s.show_zero_quantity_in_dashboard    ?? DEFAULTS.showZeroQuantityInDashboard,
   };
 }
 
 function toSettings(b) {
   return {
-    primary_color:      b.primaryColor,
-    dark_mode:          b.darkMode,
-    app_title:          b.title,
-    app_subtitle:       b.subtitle,
-    logo_url:           b.logoUrl,
-    show_drink_window:  b.showDrinkWindow,
+    primary_color:                      b.primaryColor,
+    dark_mode:                          b.darkMode,
+    app_title:                          b.title,
+    app_subtitle:                       b.subtitle,
+    logo_url:                           b.logoUrl,
+    show_drink_window:                  b.showDrinkWindow,
+    show_zero_quantity_in_dashboard:    b.showZeroQuantityInDashboard,
   };
 }
 

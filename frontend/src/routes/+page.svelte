@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { version } from '../../package.json';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, updateLibraryEntry, getDrinkRules, batchUpdateWines, getCustomFields, getMe, setMyLanguage } from '$lib/api.js';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getDrinkRules, batchUpdateWines, getCustomFields, getMe, setMyLanguage } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
@@ -72,10 +72,10 @@
     }
   }
   let selectedWine = null;
+  let quickAddWine = null;
   let libraryAddWine = null;
   let libraryAddIsNew = false;
   let libraryAddFromLibrary = false;
-  let editingLibraryId = null;
   let inventoryMode = false;
   let showInventoryScanner = false;
   let inventoryScanWine = null;
@@ -150,25 +150,16 @@
   async function handleSave(e) {
     const data = e.detail;
     try {
-      if (editingLibraryId) {
-        const result = await updateLibraryEntry(editingLibraryId, data);
-        if (result.updated_wines > 0) {
-          wines = await getWines();
-          stats = await getStats();
-        }
-        showToast(`Bibliothek aktualisiert${result.updated_wines > 0 ? ` · ${result.updated_wines} Wein${result.updated_wines !== 1 ? 'e' : ''} aktualisiert` : ''}`);
-        closeModal();
-        return;
-      }
       if (editingWine) {
-        const updated = await updateWine(editingWine.id, data);
-        wines = wines.map(w => w.id === updated.id ? updated : w);
+        await updateWine(editingWine.id, data);
         showToast($t('toast_updated'));
       } else {
         const created = await createWine(data);
         wines = [created, ...wines];
         showToast($t('toast_added'));
       }
+      // Always reload: edited wine might change qty and appear/disappear from dashboard
+      wines = await getWines();
       stats = await getStats();
       closeModal();
     } catch (e) {
@@ -180,7 +171,7 @@
     const id = e.detail;
     if (!confirm($t('confirm_delete'))) return;
     try {
-      await deleteWine(id);
+      await updateWine(id, { quantity: 0 });
       wines = wines.filter(w => w.id !== id);
       stats = await getStats();
       showToast($t('toast_deleted'));
@@ -195,8 +186,31 @@
   }
 
   function openAdd() {
-    editingWine = null;
-    showModal = true;
+    quickAddWine = { name: '', type: 'red', quantity: 0, image_url: '', producer: '', vintage: null, price: null };
+  }
+
+  async function handleDirectQuickAdd(e) {
+    const { wine, qty } = e.detail;
+    quickAddWine = null;
+    if (!wine.name?.trim()) return;
+    try {
+      if (wine.id) {
+        // Selected from library → update metadata + increment quantity
+        await updateWine(wine.id, {
+          name: wine.name, producer: wine.producer, vintage: wine.vintage,
+          type: wine.type, price: wine.price, image_url: wine.image_url,
+          barcode: wine.barcode,
+          quantity: (wine.quantity || 0) + qty,
+        });
+      } else {
+        await createWine({ ...wine, quantity: qty });
+      }
+      wines = await getWines();
+      stats = await getStats();
+      showToast($t('toast_added'));
+    } catch (err) {
+      handleApiError(err);
+    }
   }
 
   function closeModal() {
@@ -204,30 +218,18 @@
     editingWine = null;
     libraryPrefill = null;
     modalHideStock = false;
-    editingLibraryId = null;
   }
 
-  function handleLibrarySelect(e) {
-    libraryPrefill = e.detail;
-    showLibrary = false;
-    showModal = true;
-  }
-
-  function handleLibraryAddToInventory(e) {
-    const entry = e.detail;
-    const existing = wines.find(w =>
-      (entry.barcode && w.barcode === entry.barcode) ||
-      (entry.wineapi_id && entry.wineapi_id && w.wineapi_id === entry.wineapi_id) ||
-      w.name.toLowerCase() === entry.name.toLowerCase()
-    );
-    libraryAddWine = existing || entry;
-    libraryAddIsNew = !existing;
+function handleLibraryAddToInventory(e) {
+    // Library entries are already unified — just increment quantity
+    libraryAddWine = e.detail;
+    libraryAddIsNew = false;
     libraryAddFromLibrary = true;
   }
 
   function handleLibraryEdit(e) {
-    editingLibraryId = e.detail.id;
-    libraryPrefill = e.detail;
+    // Library entries and wine entries are the same — use regular edit flow
+    editingWine = e.detail;
     showLibrary = false;
     showModal = true;
   }
@@ -242,24 +244,12 @@
   }
 
   async function handleLibraryQuickAdd(e) {
-    const { wine, qty, isNew } = e.detail;
+    const { wine, qty } = e.detail;
     libraryAddWine = null;
     try {
-      if (isNew) {
-        const created = await createWine({ ...wine, quantity: qty });
-        wines = [created, ...wines];
-      } else {
-        const updated = await updateWine(wine.id, {
-          quantity: wine.quantity + qty,
-          name: wine.name,
-          image_url: wine.image_url,
-          producer: wine.producer,
-          vintage: wine.vintage,
-          type: wine.type,
-          price: wine.price,
-        });
-        wines = wines.map(w => w.id === updated.id ? updated : w);
-      }
+      await updateWine(wine.id, { quantity: (wine.quantity || 0) + qty });
+      // Reload in case wine moved from 0→visible or changed position
+      wines = await getWines();
       stats = await getStats();
       showToast(`${wine.name} hinzugefügt`);
     } catch {
@@ -337,17 +327,9 @@
   async function exitInventoryMode() {
     inventoryMode = false;
     showInventoryScanner = false;
-    const toDelete = wines.filter(w => w.quantity <= 0);
-    for (const w of toDelete) {
-      try {
-        await deleteWine(w.id);
-      } catch { /* ignore */ }
-    }
-    if (toDelete.length > 0) {
-      wines = wines.filter(w => w.quantity > 0);
-      stats = await getStats();
-      showToast(`${toDelete.length} ${$t('toast_deleted')}`);
-    }
+    // Wines with qty=0 now stay in library — reload to refresh dashboard
+    wines = await getWines();
+    stats = await getStats();
   }
 
   onMount(async () => {
@@ -590,7 +572,11 @@
 
   <footer class="footer">
     <a href="https://github.com/KrapfalAT/kellerlog" target="_blank" rel="noopener" class="footer-link">KellerLog</a>
-    <a class="footer-version" href="https://github.com/KrapfalAT/kellerlog/releases" target="_blank" rel="noopener">v{version}</a>
+    {#if import.meta.env.VITE_DEV_BUILD === 'true'}
+      <span class="footer-version dev-badge">dev</span>
+    {:else}
+      <a class="footer-version" href="https://github.com/KrapfalAT/kellerlog/releases" target="_blank" rel="noopener">v{version}</a>
+    {/if}
   </footer>
 
   <!-- Selection Bar -->
@@ -635,6 +621,11 @@
   <!-- Modal -->
   {#if showModal}
     <AddWineModal wine={editingWine} prefill={libraryPrefill} hideStock={modalHideStock || inventoryMode} {customFields} on:save={handleSave} on:close={closeModal} />
+  {/if}
+
+  <!-- Quick-Add (FAB "+" button) -->
+  {#if quickAddWine}
+    <InventoryQuickAdd wine={quickAddWine} isNew={true} fromLibrary={false} on:confirm={handleDirectQuickAdd} on:cancel={() => quickAddWine = null} />
   {/if}
 
   <!-- Map -->
@@ -689,7 +680,6 @@
   {#if showLibrary}
     <LibraryManager
       on:close={() => showLibrary = false}
-      on:selectEntry={handleLibrarySelect}
       on:addToInventory={handleLibraryAddToInventory}
       on:editEntry={handleLibraryEdit}
       on:duplicateEntry={handleLibraryDuplicate}
@@ -1121,6 +1111,15 @@
     color: inherit;
     text-decoration: none;
     transition: opacity 0.15s;
+  }
+  .dev-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.15);
+    padding: 1px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
   }
   .footer-version:hover { opacity: 1; }
   .footer-link:hover { color: var(--primary); }

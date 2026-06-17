@@ -85,7 +85,7 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
-    z-index: 300;
+    z-index: 400;
     display: flex;
     align-items: center;
     justify-content: center;

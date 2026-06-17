@@ -138,6 +138,9 @@
   "branding_drink_window": "Drink window indicator",
   "branding_drink_window_desc": "Shows on each wine card whether a wine is ready to drink",
 
+  "branding_show_zero_qty": "Show 0-bottle wines in dashboard",
+  "branding_show_zero_qty_desc": "Also shows wines with no bottles in the overview (otherwise only visible in library)",
+
   "drink_young": "Too young",
   "drink_ready": "Drink now",
   "drink_late": "Past peak",
@@ -186,7 +189,7 @@
   "modal_edit_title": "Edit Wine",
   "modal_save": "Save",
   "modal_cancel": "Cancel",
-  "modal_search_placeholder": "Name, winery or barcode...",
+  "modal_search_placeholder": "EAN / Barcode",
   "modal_field_name": "Name*",
   "modal_field_producer": "Winery / Producer",
   "modal_field_type": "Type*",
@@ -233,7 +236,7 @@
   "modal_error_required": "Name is required",
   "modal_error_save": "Error saving",
   "modal_error_upload": "Image could not be uploaded",
-  "modal_auto_search": "Search automatically (name or barcode)",
+  "modal_auto_search": "Add or change barcode",
   "modal_local_saved": "Saved locally",
   "modal_not_found": "No entry found — enter details manually below.",
   "modal_api_warn": "WineAPI unavailable — please enter details manually.",
