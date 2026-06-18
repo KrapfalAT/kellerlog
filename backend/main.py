@@ -726,7 +726,7 @@ def _save_custom_values(db: Session, wine_id: int, values: dict):
 # ── Auth endpoints ───────────────────────────────────────────────────────────
 
 @app.post("/auth/login")
-@limiter.limit("10/minute")
+@limiter.limit("5/minute;20/hour")
 def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == data.username).first()
     if not user or not _verify_password(data.password, user.password_hash):
