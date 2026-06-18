@@ -96,7 +96,7 @@
     try {
       const result = await lookupBarcode(barcode);
       if (result?.source === 'local') {
-        // Barcode already in library → overwrite all fields
+        selectedEntry = result;
         localName     = result.name      || '';
         localProducer = result.producer  || '';
         localVintage  = result.vintage   || '';

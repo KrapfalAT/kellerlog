@@ -341,6 +341,21 @@ function handleLibraryView(e) {
     load();
     const me = await getMe();
     if (me?.language) lang.set(me.language);
+
+    let es;
+    function connectSSE() {
+      es = new EventSource('/api/events');
+      es.addEventListener('wines', async () => {
+        wines = await getWines();
+        stats = await getStats();
+      });
+      es.onerror = () => {
+        es.close();
+        setTimeout(connectSSE, 5000);
+      };
+    }
+    connectSSE();
+    return () => es?.close();
   });
 
   function saveAdminKey() {

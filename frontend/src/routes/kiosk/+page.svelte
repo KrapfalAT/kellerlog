@@ -68,8 +68,21 @@
     } finally {
       loading = false;
     }
-    // branding (color, dark mode, logo) from same settings endpoint
     branding.init();
+
+    let es;
+    function connectSSE() {
+      es = new EventSource('/api/events');
+      es.addEventListener('wines', async () => {
+        wines = await getWines();
+      });
+      es.onerror = () => {
+        es.close();
+        setTimeout(connectSSE, 5000);
+      };
+    }
+    connectSSE();
+    return () => es?.close();
   });
 </script>
 
