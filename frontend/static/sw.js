@@ -1,4 +1,4 @@
-const CACHE = 'kellerlog-v4';
+const CACHE = 'kellerlog-v5';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

@@ -1,7 +1,7 @@
 const BASE = '/api';
 const AUTH_STORAGE = 'kellerlog_auth';
 
-function getToken() {
+export function getToken() {
   if (typeof localStorage === 'undefined') return '';
   try {
     const raw = localStorage.getItem(AUTH_STORAGE);
@@ -79,7 +79,7 @@ export async function deleteUser(id) {
 }
 
 export async function getWines() {
-  const r = await fetch(`${BASE}/wines`);
+  const r = await fetch(`${BASE}/wines`, { headers: authHeaders() });
   if (!r.ok) throw new Error('Fehler beim Laden');
   return r.json();
 }
@@ -144,20 +144,20 @@ export async function uploadImage(file) {
 }
 
 export async function getStats() {
-  const r = await fetch(`${BASE}/stats`);
+  const r = await fetch(`${BASE}/stats`, { headers: authHeaders() });
   if (!r.ok) return null;
   return r.json();
 }
 
 export async function searchLibrary(q) {
-  const r = await fetch(`${BASE}/library/search?q=${encodeURIComponent(q)}`);
+  const r = await fetch(`${BASE}/library/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
   if (!r.ok) return [];
   const results = await r.json();
   return results.map(e => ({ ...e, source: 'local' }));
 }
 
 export async function getLibrary() {
-  const r = await fetch(`${BASE}/library`);
+  const r = await fetch(`${BASE}/library`, { headers: authHeaders() });
   if (!r.ok) throw new Error('Fehler beim Laden der Bibliothek');
   return r.json();
 }
@@ -203,13 +203,13 @@ export async function importWines(file) {
 }
 
 export async function getGrapes() {
-  const r = await fetch(`${BASE}/grapes`);
+  const r = await fetch(`${BASE}/grapes`, { headers: authHeaders() });
   if (!r.ok) return [];
   return r.json();
 }
 
 export async function getDrinkRules() {
-  const r = await fetch(`${BASE}/drink-rules`);
+  const r = await fetch(`${BASE}/drink-rules`, { headers: authHeaders() });
   if (!r.ok) return [];
   return r.json();
 }
@@ -243,7 +243,7 @@ export async function deleteDrinkRule(id) {
 }
 
 export async function getSettings() {
-  const r = await fetch(`${BASE}/settings`);
+  const r = await fetch(`${BASE}/settings`, { headers: authHeaders() });
   if (!r.ok) return null;
   return r.json();
 }
@@ -260,7 +260,7 @@ export async function updateSettings(data) {
 }
 
 export async function getCustomFields() {
-  const r = await fetch(`${BASE}/custom-fields`);
+  const r = await fetch(`${BASE}/custom-fields`, { headers: authHeaders() });
   if (!r.ok) return [];
   return r.json();
 }

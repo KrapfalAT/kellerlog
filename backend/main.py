@@ -930,7 +930,17 @@ def get_wines(db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
 _SSE_MAX_CONNECTIONS = 50
 
 @app.get("/events")
-async def sse_events(request: Request, db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
+async def sse_events(request: Request, token: str = "", db: Session = Depends(get_db)):
+    # EventSource API cannot set headers — accept token via query param
+    auth = request.headers.get("authorization", "")
+    if not auth and token:
+        auth = f"Bearer {token}"
+    settings = db.get(AppSettings, 1)
+    kiosk_open = settings and settings.kiosk_enabled
+    if auth.startswith("Bearer "):
+        _decode_token(auth[7:])  # raises 401 if invalid
+    elif not kiosk_open:
+        raise HTTPException(status_code=401, detail="Nicht angemeldet")
     if len(_sse_subscribers) >= _SSE_MAX_CONNECTIONS:
         raise HTTPException(status_code=429, detail="Zu viele SSE-Verbindungen")
     q: asyncio.Queue = asyncio.Queue(maxsize=20)

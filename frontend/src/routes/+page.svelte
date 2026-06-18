@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { version } from '../../package.json';
-  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getDrinkRules, batchUpdateWines, getCustomFields, getMe, setMyLanguage } from '$lib/api.js';
+  import { getWines, createWine, updateWine, deleteWine, getStats, lookupBarcode, getDrinkRules, batchUpdateWines, getCustomFields, getMe, setMyLanguage, getToken } from '$lib/api.js';
   import WineCard from '$lib/components/WineCard.svelte';
   import AddWineModal from '$lib/components/AddWineModal.svelte';
   import WineMap from '$lib/components/WineMap.svelte';
@@ -344,7 +344,8 @@ function handleLibraryView(e) {
 
     let es;
     function connectSSE() {
-      es = new EventSource('/api/events');
+      const token = getToken();
+      es = new EventSource(`/api/events${token ? `?token=${encodeURIComponent(token)}` : ''}`);
       es.addEventListener('wines', async () => {
         wines = await getWines();
         stats = await getStats();
