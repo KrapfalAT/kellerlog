@@ -4,6 +4,16 @@
   import { t, lang } from '$lib/stores/i18n.js';
   import BarcodeScanner from './BarcodeScanner.svelte';
 
+  function autoResize(node) {
+    function resize() {
+      node.style.height = 'auto';
+      node.style.height = node.scrollHeight + 'px';
+    }
+    node.addEventListener('input', resize);
+    resize();
+    return { destroy() { node.removeEventListener('input', resize); } };
+  }
+
   export let wine = null;         // null = new, object = edit existing
   export let prefill = null;      // pre-fill from library without triggering edit mode
   export let hideStock = false;   // hide inventory quantity field (e.g. when opened from map)
@@ -254,12 +264,12 @@
 
           <div class="field span-2">
             <label for="description">{$t('modal_field_description')}</label>
-            <textarea id="description" bind:value={form.description} placeholder={$t('modal_field_description')} rows="2"></textarea>
+            <textarea id="description" bind:value={form.description} placeholder={$t('modal_field_description')} rows="1" use:autoResize></textarea>
           </div>
 
           <div class="field span-2">
             <label for="notes">{$t('modal_field_notes')}</label>
-            <textarea id="notes" bind:value={form.notes} placeholder={$t('modal_field_notes')} rows="2"></textarea>
+            <textarea id="notes" bind:value={form.notes} placeholder={$t('modal_field_notes')} rows="1" use:autoResize></textarea>
           </div>
 
           <div class="field span-2">
@@ -287,7 +297,7 @@
                 <div class="field">
                   <label for="cf-{cf.key}">{$lang === 'de' ? cf.label_de : (cf.label_en || cf.label_de)}</label>
                   {#if cf.field_type === 'textarea'}
-                    <textarea id="cf-{cf.key}" bind:value={customValues[cf.key]} rows="2"></textarea>
+                    <textarea id="cf-{cf.key}" bind:value={customValues[cf.key]} rows="1" use:autoResize></textarea>
                   {:else}
                     <input id="cf-{cf.key}" type={cf.field_type === 'number' ? 'number' : cf.field_type === 'date' ? 'date' : 'text'} bind:value={customValues[cf.key]} />
                   {/if}
@@ -601,7 +611,7 @@
     outline: none;
     border-color: var(--primary);
   }
-  .field textarea { resize: vertical; }
+  .field textarea { resize: none; overflow: hidden; }
 
   .star-rating {
     display: flex;
@@ -775,5 +785,17 @@
     border-radius: 8px;
     font-weight: 600;
     white-space: nowrap;
+  }
+
+  @media (max-width: 520px) {
+    .backdrop { padding: 0; align-items: flex-end; }
+    .modal {
+      max-width: 100%;
+      border-radius: 20px 20px 0 0;
+      max-height: 95vh;
+    }
+    .modal-body { padding: 16px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .field.span-2 { grid-column: 1; }
   }
 </style>

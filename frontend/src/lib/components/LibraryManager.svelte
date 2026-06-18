@@ -93,8 +93,8 @@
         <p class="count">{filtered.length} Eintra{filtered.length !== 1 ? 'ge' : 'g'}</p>
         <ul class="entries">
           {#each filtered as entry (entry.id)}
-            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-            <li class="entry">
+            <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
+            <li class="entry" on:click={() => dispatch('viewEntry', entry)}>
               <div class="entry-thumb">
                 {#if entry.image_url}
                   <img src={entry.image_url} alt={entry.name} />
@@ -305,8 +305,11 @@
     gap: 12px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s;
   }
   .entry:last-child { border-bottom: none; }
+  .entry:hover { background: var(--surface-2); }
 
   .entry-thumb {
     width: 44px;

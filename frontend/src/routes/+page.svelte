@@ -220,7 +220,11 @@
     modalHideStock = false;
   }
 
-function handleLibraryAddToInventory(e) {
+function handleLibraryView(e) {
+    selectedWine = e.detail;
+  }
+
+  function handleLibraryAddToInventory(e) {
     // Library entries are already unified — just increment quantity
     libraryAddWine = e.detail;
     libraryAddIsNew = false;
@@ -680,6 +684,7 @@ function handleLibraryAddToInventory(e) {
   {#if showLibrary}
     <LibraryManager
       on:close={() => showLibrary = false}
+      on:viewEntry={handleLibraryView}
       on:addToInventory={handleLibraryAddToInventory}
       on:editEntry={handleLibraryEdit}
       on:duplicateEntry={handleLibraryDuplicate}
