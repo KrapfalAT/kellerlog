@@ -17,6 +17,22 @@ server {
         try_files $uri =404;
     }
 
+    location /api/events {
+        proxy_pass http://${BACKEND_HOST}:8000/events;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        chunked_transfer_encoding on;
+        # nginx strips X-Accel-Buffering from upstream; re-add it so the outer
+        # reverse proxy (OpenResty) also sees it and disables its own buffering.
+        add_header X-Accel-Buffering "no" always;
+        add_header Cache-Control "no-cache" always;
+    }
+
     location /api/ {
         proxy_pass http://${BACKEND_HOST}:8000/;
         proxy_http_version 1.1;

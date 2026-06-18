@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 import json
@@ -12,7 +13,7 @@ from typing import Optional, List
 import httpx
 from fastapi import FastAPI, HTTPException, Depends, File, Header, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import bcrypt as _bcrypt
 from jose import JWTError, jwt
@@ -31,6 +32,24 @@ Base = declarative_base()
 WINEAPI_KEY = os.getenv("WINEAPI_KEY", "")
 WINEAPI_BASE = "https://api.wineapi.io"
 WINEAPI_HEADERS = {"X-API-Key": WINEAPI_KEY}
+
+# ── SSE broadcast ────────────────────────────────────────────────────────────
+_sse_subscribers: list[asyncio.Queue] = []
+_main_loop: asyncio.AbstractEventLoop | None = None
+
+async def _sse_notify(event: str = "wines"):
+    dead = []
+    for q in _sse_subscribers:
+        try:
+            q.put_nowait(event)
+        except asyncio.QueueFull:
+            dead.append(q)
+    for q in dead:
+        _sse_subscribers.remove(q)
+
+def notify_clients(event: str = "wines"):
+    if _main_loop is not None:
+        asyncio.run_coroutine_threadsafe(_sse_notify(event), _main_loop)
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
@@ -432,6 +451,11 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="KellerLog API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.on_event("startup")
+async def _capture_loop():
+    global _main_loop
+    _main_loop = asyncio.get_running_loop()
 
 app.add_middleware(
     CORSMiddleware,
@@ -936,6 +960,33 @@ def get_wines(db: Session = Depends(get_db)):
     return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
 
+@app.get("/events")
+async def sse_events(request: Request):
+    q: asyncio.Queue = asyncio.Queue(maxsize=20)
+    _sse_subscribers.append(q)
+
+    async def stream():
+        try:
+            yield "retry: 3000\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=25)
+                    yield f"event: {event}\ndata: 1\n\n"
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            if q in _sse_subscribers:
+                _sse_subscribers.remove(q)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.post("/wines", response_model=WineResponse)
 def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
     wine_data = wine.model_dump(exclude={'custom_values'})
@@ -947,6 +998,7 @@ def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(requi
     if wine.custom_values:
         _save_custom_values(db, db_wine.id, wine.custom_values)
     cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == db_wine.id).all()}
+    notify_clients()
     return _wine_to_dict(db_wine, cvs)
 
 
@@ -973,6 +1025,7 @@ def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get
     if wine_update.custom_values is not None:
         _save_custom_values(db, wine_id, wine_update.custom_values)
     cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).all()}
+    notify_clients()
     return _wine_to_dict(wine, cvs)
 
 
@@ -989,6 +1042,7 @@ def batch_update_wines(data: WineBatchUpdate, db: Session = Depends(get_db), _=D
             setattr(wine, field, value)
         wine.updated_at = datetime.utcnow()
     db.commit()
+    notify_clients()
     return {"updated": len(wines)}
 
 
@@ -1000,6 +1054,7 @@ def delete_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_a
     db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).delete()
     db.delete(wine)
     db.commit()
+    notify_clients()
     return {"message": "Wein gelöscht"}
 
 
@@ -1054,6 +1109,7 @@ def update_library_entry(entry_id: int, data: WineUpdate, db: Session = Depends(
     if data.custom_values is not None:
         _save_custom_values(db, entry_id, data.custom_values)
     cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == entry_id).all()}
+    notify_clients()
     return _wine_to_dict(entry, cvs)
 
 
@@ -1065,6 +1121,7 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), _=Depends
     db.query(WineCustomValue).filter(WineCustomValue.wine_id == entry_id).delete()
     db.delete(entry)
     db.commit()
+    notify_clients()
     return {"ok": True}
 
 

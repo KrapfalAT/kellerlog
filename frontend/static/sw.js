@@ -1,4 +1,4 @@
-const CACHE = 'kellerlog-v3';
+const CACHE = 'kellerlog-v4';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -32,7 +32,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return resp;
-      }).catch(() => cached);
+      }).catch(() => cached ?? new Response('', { status: 503 }));
     })
   );
 });
