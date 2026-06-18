@@ -6,24 +6,69 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 
 ## Screenshots
 
-| Collection | Inventory Mode | Wine Details |
+| Collection | Wine Details | Kiosk |
 |:---:|:---:|:---:|
-| ![Collection view](docs/screenshots/collection.png) | ![Inventory mode](docs/screenshots/inventory.png) | ![Wine details](docs/screenshots/description.png) |
+| ![Collection view](docs/screenshots/collection.png) | ![Wine details](docs/screenshots/description.png) | ![Inventory mode](docs/screenshots/inventory.png) |
+
+---
 
 ## Features
 
-- **User accounts** — JWT-based login with Admin and Viewer roles; admins can write, viewers are read-only
-- **Wine collection** — add, edit, and delete wines with photos, tasting notes, ratings, and food pairings
-- **Wine library** — reusable wine database; add to inventory with one click, duplicate entries, propagate edits to matching wines
-- **Barcode scanner** — scan a wine bottle to auto-fill details via the WineAPI
-- **Inventory mode** — quickly adjust bottle counts with +/− controls; wines with zero bottles are removed when you exit
-- **Kiosk view** — a clean, read-only wine list at `/kiosk` for guests or a wall display; configurable per admin (title, subtitle, map button, footer, enable/disable)
-- **Glass wine mode** — mark wines as available by the glass, with optional per-glass price; filterable in kiosk view
-- **Wine map** — world map showing where your wines come from, with automatic geocoding for unknown regions via Nominatim
-- **Import / Export** — backup and restore your collection as JSON or CSV
-- **Branding** — customize the title, logo, accent color, and dark mode; settings are stored server-side and shared across all devices
-- **PWA / installable** — install as a home screen app on mobile and desktop
-- **i18n** — German and English UI
+**Collection management**
+- Add, edit, and delete wines with photos, tasting notes, ratings, food pairings, and custom fields
+- Filter by type, sort by date / rating / quantity, full-text search
+- Batch edit — select multiple wines and update type, region, or location at once
+- Click any wine to open a detail panel with a full-screen image lightbox
+
+**Barcode scanner**
+- Scan a bottle's EAN/UPC to auto-fill wine details from the local library or WineAPI
+- Works on mobile via the camera; also available as a manual text input
+
+**Wine library**
+- Shared database of wine metadata, separate from inventory counts
+- Add any library entry to inventory with one click; edits propagate to the live collection
+- Autocomplete while typing a wine name pulls from the library
+
+**Inventory mode**
+- Dedicated mode with +/− controls for fast stock adjustment
+- Wines that reach zero bottles are removed automatically when you exit
+
+**Kiosk view** (`/kiosk`)
+- Clean, public, read-only wine list for guests or a wall display
+- Configurable title, subtitle, map button, footer, drink-window display, and on/off toggle
+- Real-time updates — refreshes automatically when the collection changes
+
+**Drink window**
+- Define rules per wine type (e.g. "drink Riesling between 3 and 8 years after vintage")
+- Each wine card shows whether it's ready to drink, too young, or past peak
+
+**Real-time sync**
+- Dashboard and kiosk update instantly across all connected devices via Server-Sent Events (SSE)
+- No polling — changes appear within a second of being saved
+
+**Wine map**
+- World map showing where your wines come from
+- Automatic geocoding for unknown regions via Nominatim
+
+**Import / Export**
+- Full backup and restore as JSON or CSV
+
+**Branding**
+- Customize the app title, subtitle, logo, accent color, and dark/light mode
+- Settings are stored server-side and apply to all users and devices immediately
+
+**User accounts**
+- JWT-based auth with Admin and Viewer roles
+- Admins have full read/write access; Viewers are read-only
+
+**PWA**
+- Installable as a home-screen app on iOS, Android, and desktop
+- Service worker caches the app shell; API calls always go to the network
+
+**i18n**
+- German and English UI; switchable per user
+
+---
 
 ## Docker Images
 
@@ -31,20 +76,12 @@ Pre-built images are published to GitHub Container Registry on every release:
 
 | Image | Tags |
 |-------|------|
-| `ghcr.io/krapfalat/kellerlog-frontend` | `latest` (release), `edge` (main) |
-| `ghcr.io/krapfalat/kellerlog-backend` | `latest` (release), `edge` (main) |
+| `ghcr.io/krapfalat/kellerlog-frontend` | `latest` (stable release), `edge` (main branch) |
+| `ghcr.io/krapfalat/kellerlog-backend` | `latest` (stable release), `edge` (main branch) |
 
 Both images are built for `linux/amd64` and `linux/arm64`.
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | SvelteKit (SPA, static adapter) |
-| Backend | FastAPI + SQLAlchemy |
-| Database | SQLite |
-| Proxy | nginx |
-| Deployment | Docker Compose |
+---
 
 ## Getting Started
 
@@ -54,7 +91,7 @@ Both images are built for `linux/amd64` and `linux/arm64`.
 
 ### Installation
 
-Create a `docker-compose.yml`:
+**1. Create `docker-compose.yml`**
 
 ```yaml
 services:
@@ -76,94 +113,99 @@ services:
     depends_on:
       - backend
     environment:
-      - BACKEND_HOST=backend   # must match the backend service name above
+      - BACKEND_HOST=backend
     restart: unless-stopped
 ```
 
-Create a `.env` in the same directory:
+**2. Create `.env`**
 
 ```env
-# Required: JWT signing secret — generate with:
-# python3 -c "import secrets; print(secrets.token_hex(32))"
+# Required — generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+# Must remain stable across restarts; changing it invalidates all sessions.
 KELLERLOG_SECRET_KEY=your_secret_key_here
 
 # Admin account (created on first run if no users exist)
 KELLERLOG_ADMIN_USER=admin
 KELLERLOG_ADMIN_PASSWORD=your_admin_password_here
 
-# Optional: enables barcode lookup and wine search — get a key at https://wineapi.io
-WINEAPI_KEY=your_wineapi_key_here
+# Optional — enables barcode lookup and wine search (https://wineapi.io)
+WINEAPI_KEY=
 ```
 
 > If `KELLERLOG_ADMIN_PASSWORD` is not set, a random password is generated at startup and printed once to the container logs.
 
-Start:
+**3. Start**
 
 ```bash
 docker compose up -d
 ```
 
-Open [http://localhost:8080](http://localhost:8080) and log in with your admin credentials.
+Open [http://localhost:8080](http://localhost:8080) and log in.
 
 ### Updating
 
 ```bash
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
+
+---
 
 ## Configuration
 
 ### Environment variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `KELLERLOG_SECRET_KEY` | **Yes** | JWT signing secret. Generate with `python3 -c "import secrets; print(secrets.token_hex(32))"`. Must persist across restarts — all sessions are invalidated if it changes. |
-| `KELLERLOG_ADMIN_USER` | No | Username for the initial admin account (default: `admin`). Only used on first run. |
-| `KELLERLOG_ADMIN_PASSWORD` | Recommended | Password for the initial admin account. Auto-generated and printed to logs if not set. |
-| `WINEAPI_KEY` | No | API key for barcode lookup and wine search ([wineapi.io](https://wineapi.io)) |
-| `BACKEND_HOST` | No | Hostname of the backend service as seen by nginx (default: `backend`). Change if you rename the Docker service. |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `KELLERLOG_SECRET_KEY` | **Yes** | — | JWT signing secret. Must persist across restarts. |
+| `KELLERLOG_ADMIN_USER` | No | `admin` | Username for the initial admin account (first run only). |
+| `KELLERLOG_ADMIN_PASSWORD` | Recommended | *(auto-generated)* | Password for the initial admin account. |
+| `WINEAPI_KEY` | No | — | API key for barcode lookup and wine search ([wineapi.io](https://wineapi.io)). |
+| `BACKEND_HOST` | No | `backend` | Hostname of the backend service as seen by nginx. |
 
 ### User management
 
-Admins can create, edit, and delete user accounts from the hamburger menu → **User Management**. Two roles are available:
+Admins can create, edit, and delete user accounts via the hamburger menu → **User Management**. Two roles:
 
 - **Admin** — full read/write access
-- **Viewer** — read-only (cannot add, edit, or delete wines)
+- **Viewer** — read-only; cannot add, edit, or delete wines
 
 ### Kiosk
 
-The kiosk view at `/kiosk` is publicly accessible without login. Admins can configure it from the hamburger menu → **Kiosk Settings**:
+The kiosk view at `/kiosk` is publicly accessible without login. Configure it via the hamburger menu → **Kiosk Settings**:
 
 - Enable or disable the kiosk entirely
-- Set the title and subtitle displayed in the kiosk header
-- Toggle the map button and footer visibility
+- Set the title and subtitle shown in the kiosk header
+- Toggle the map button, footer, and drink-window indicator
 
 ### Branding
 
-App name, subtitle, accent color, logo, and dark mode are configurable through the UI — hamburger menu → **Branding**. All settings are stored server-side in the database and apply to all users and devices immediately.
+App name, logo, accent color, and dark mode are configurable through the hamburger menu → **Branding**. Settings are stored server-side and apply immediately to all devices.
 
 ### Data
 
-Wine data and uploaded images are stored in the `kellerlog/` directory (created automatically on first run). Back it up to keep your collection safe.
+All wine data and uploaded images are stored in the `kellerlog/` directory (created automatically). Back it up regularly.
+
+---
 
 ## Routes
 
-| Path | Description |
-|------|-------------|
-| `/` | Main collection view (login required) |
-| `/login` | Login page |
-| `/kiosk` | Read-only guest view (public) |
+| Path | Auth | Description |
+|------|------|-------------|
+| `/` | Required | Main collection view |
+| `/login` | — | Login page |
+| `/kiosk` | — | Read-only guest view |
+
+---
 
 ## API
 
-The backend exposes a REST API at `/api/`. Write endpoints require a Bearer token (obtained via `POST /api/auth/login`).
+The backend exposes a REST API at `/api/`. Write endpoints require a `Bearer` token obtained via `POST /api/auth/login`.
 
 ### Auth
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/api/auth/login` | — | Login; returns JWT token |
+| `POST` | `/api/auth/login` | — | Login; returns JWT |
 | `GET` | `/api/auth/me` | Any | Current user info |
 | `GET` | `/api/auth/users` | Admin | List all users |
 | `POST` | `/api/auth/users` | Admin | Create user |
@@ -174,23 +216,61 @@ The backend exposes a REST API at `/api/`. Write endpoints require a Bearer toke
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/wines` | — | List all wines |
-| `POST` | `/api/wines` | Admin | Add a wine |
-| `PUT` | `/api/wines/{id}` | Admin | Update a wine |
-| `DELETE` | `/api/wines/{id}` | Admin | Delete a wine |
-| `GET` | `/api/lookup/{barcode}` | Any | Barcode lookup |
-| `GET` | `/api/search` | Any | Wine search via WineAPI |
+| `GET` | `/api/wines` | — | List wines |
+| `POST` | `/api/wines` | Admin | Add wine |
+| `PUT` | `/api/wines/{id}` | Admin | Update wine |
+| `PUT` | `/api/wines/batch` | Admin | Batch update |
+| `DELETE` | `/api/wines/{id}` | Admin | Delete wine |
 | `GET` | `/api/stats` | — | Collection statistics |
+| `GET` | `/api/lookup/{barcode}` | Any | Barcode lookup |
 | `GET` | `/api/export/json` | Any | Export as JSON |
 | `GET` | `/api/export/csv` | Any | Export as CSV |
 | `POST` | `/api/import` | Admin | Import JSON or CSV |
 
-### Settings
+### Library
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/settings` | — | Get app & kiosk settings |
-| `PUT` | `/api/settings` | Admin | Update app & kiosk settings |
+| `GET` | `/api/library` | Any | List library entries |
+| `GET` | `/api/library/search?q=` | Any | Search library |
+| `PUT` | `/api/library/{id}` | Admin | Update library entry |
+| `DELETE` | `/api/library/{id}` | Admin | Delete library entry |
+
+### Settings & configuration
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/settings` | — | App and kiosk settings |
+| `PUT` | `/api/settings` | Admin | Update settings |
+| `GET` | `/api/drink-rules` | — | List drink-window rules |
+| `POST` | `/api/drink-rules` | Admin | Create rule |
+| `PUT` | `/api/drink-rules/{id}` | Admin | Update rule |
+| `DELETE` | `/api/drink-rules/{id}` | Admin | Delete rule |
+| `GET` | `/api/custom-fields` | — | List custom fields |
+| `POST` | `/api/custom-fields` | Admin | Create custom field |
+| `PUT` | `/api/custom-fields/{id}` | Admin | Update custom field |
+| `DELETE` | `/api/custom-fields/{id}` | Admin | Delete custom field |
+
+### Real-time
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/events` | — | SSE stream; emits `wines` event on any collection change |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | SvelteKit (SPA, static adapter) + Svelte 5 |
+| Backend | FastAPI + SQLAlchemy |
+| Database | SQLite |
+| Proxy | nginx |
+| Deployment | Docker Compose |
+| Real-time | Server-Sent Events (SSE) |
+
+---
 
 ## AI Disclaimer
 
