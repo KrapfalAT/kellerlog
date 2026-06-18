@@ -10,6 +10,8 @@
   let mapEl;
   let map = null;
 
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
   // Canonical country centre-points
   const COUNTRY_COORDS = {
     'Austria': [47.5, 14.5], 'France': [46.2, 2.2], 'Italy': [42.8, 12.6],
@@ -158,15 +160,15 @@
 
   function buildPopup(label, list) {
     const rows = list.map(w =>
-      `<li data-wine-id="${w.id}" style="padding:6px 0;border-top:1px solid #f0e8ed;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;cursor:pointer;border-radius:4px" onmouseover="this.style.background='#fdf5f8'" onmouseout="this.style.background=''">
+      `<li data-wine-id="${esc(w.id)}" style="padding:6px 0;border-top:1px solid #f0e8ed;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;cursor:pointer;border-radius:4px" onmouseover="this.style.background='#fdf5f8'" onmouseout="this.style.background=''">
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#3d0d1c;font-weight:600">
-          ${w.name}${w.vintage ? ` <span style="color:#aaa;font-weight:400">${w.vintage}</span>` : ''}
+          ${esc(w.name)}${w.vintage ? ` <span style="color:#aaa;font-weight:400">${esc(w.vintage)}</span>` : ''}
         </span>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7B1D3F" stroke-width="2.5" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
       </li>`
     ).join('');
     return `<div style="min-width:200px;max-width:280px">
-      <div style="font-size:15px;font-weight:700;color:#7B1D3F;margin-bottom:8px">${label}</div>
+      <div style="font-size:15px;font-weight:700;color:#7B1D3F;margin-bottom:8px">${esc(label)}</div>
       <ul style="margin:0;padding:0;list-style:none">${rows}</ul>
     </div>`;
   }
