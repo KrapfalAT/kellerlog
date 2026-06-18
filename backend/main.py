@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
-import httpx
 from fastapi import FastAPI, HTTPException, Depends, File, Header, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse, StreamingResponse
@@ -28,10 +27,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/wines.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-WINEAPI_KEY = os.getenv("WINEAPI_KEY", "")
-WINEAPI_BASE = "https://api.wineapi.io"
-WINEAPI_HEADERS = {"X-API-Key": WINEAPI_KEY}
 
 # ── SSE broadcast ────────────────────────────────────────────────────────────
 _sse_subscribers: list[asyncio.Queue] = []
@@ -53,7 +48,9 @@ def notify_clients(event: str = "wines"):
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
-SECRET_KEY = os.getenv("KELLERLOG_SECRET_KEY", secrets.token_hex(32))
+SECRET_KEY = os.getenv("KELLERLOG_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("KELLERLOG_SECRET_KEY is not set — set it in your .env file")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 30
 
@@ -91,6 +88,7 @@ def require_login(authorization: str = Header(default="")):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
     return _decode_token(authorization[7:])
+
 
 # Magic bytes for supported image formats
 _IMAGE_SIGNATURES = [
@@ -448,7 +446,7 @@ IMAGES_DIR = Path(os.getenv("IMAGES_DIR", "/app/data/images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="KellerLog API")
+app = FastAPI(title="KellerLog API", docs_url=None, redoc_url=None, openapi_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -473,6 +471,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def require_login_or_kiosk(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    """Allow unauthenticated access only when kiosk is enabled (public kiosk endpoints)."""
+    if authorization.startswith("Bearer "):
+        return _decode_token(authorization[7:])
+    settings = db.get(AppSettings, 1)
+    if settings and settings.kiosk_enabled:
+        return None
+    raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
@@ -688,47 +696,6 @@ class CustomFieldResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _wineapi_type(raw: str | None) -> str:
-    mapping = {"red": "red", "white": "white", "rosé": "rosé", "rose": "rosé",
-               "sparkling": "sparkling", "dessert": "dessert", "fortified": "dessert"}
-    return mapping.get((raw or "").lower(), "other")
-
-
-def _rating_from_avg(avg: float | None) -> Optional[int]:
-    if avg is None:
-        return None
-    return max(1, min(5, round(avg)))
-
-
-def _parse_wineapi(data: dict) -> dict:
-    winery = data.get("winery") or {}
-    region = data.get("region") or {}
-    grapes = data.get("grapes") or []
-    pairings = data.get("pairings") or []
-
-    producer = winery.get("name", "") if isinstance(winery, dict) else str(winery)
-    region_name = region.get("name", "") if isinstance(region, dict) else str(region)
-    country = region.get("country", "") if isinstance(region, dict) else ""
-    grape_str = ", ".join(g["name"] for g in grapes if g.get("name"))
-    pairings_str = ", ".join(p["food"] for p in pairings if p.get("food"))
-
-    return {
-        "wineapi_id": data.get("id", ""),
-        "name": data.get("name", ""),
-        "producer": producer,
-        "type": _wineapi_type(data.get("type")),
-        "region": region_name,
-        "country": country,
-        "grape": grape_str,
-        "alcohol": data.get("alcoholContent"),
-        "rating": _rating_from_avg(data.get("averageRating")),
-        "image_url": data.get("imageUrl") or "",
-        "vintage": data.get("vintage"),
-        "body": data.get("body") or "",
-        "acidity": data.get("acidity") or "",
-        "description": data.get("description") or "",
-        "pairings": pairings_str,
-    }
 
 
 def _wine_to_dict(wine: WineLibrary, custom_values: Optional[dict] = None) -> dict:
@@ -846,7 +813,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), payload=Depends(req
 # ── App Settings ──────────────────────────────────────────────────────────────
 
 @app.get("/settings", response_model=SettingsResponse)
-def get_settings(db: Session = Depends(get_db)):
+def get_settings(db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
     return db.get(AppSettings, 1)
 
 
@@ -863,14 +830,14 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), _=Depen
 # ── Grapes ───────────────────────────────────────────────────────────────────
 
 @app.get("/grapes")
-def get_grapes(db: Session = Depends(get_db)):
+def get_grapes(db: Session = Depends(get_db), _=Depends(require_login)):
     return [g.name for g in db.query(Grape).order_by(Grape.name).all()]
 
 
 # ── Drink Window Rules ────────────────────────────────────────────────────────
 
 @app.get("/drink-rules", response_model=List[DrinkRuleResponse])
-def get_drink_rules(db: Session = Depends(get_db)):
+def get_drink_rules(db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
     return db.query(DrinkWindowRule).order_by(DrinkWindowRule.id).all()
 
 
@@ -908,7 +875,7 @@ def delete_drink_rule(rule_id: int, db: Session = Depends(get_db), _=Depends(req
 # ── Custom Fields ─────────────────────────────────────────────────────────────
 
 @app.get("/custom-fields", response_model=List[CustomFieldResponse])
-def get_custom_fields(db: Session = Depends(get_db)):
+def get_custom_fields(db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
     return db.query(CustomField).order_by(CustomField.sort_order, CustomField.id).all()
 
 
@@ -949,7 +916,7 @@ def delete_custom_field(field_id: int, db: Session = Depends(get_db), _=Depends(
 # ── Wine CRUD (unified library) ───────────────────────────────────────────────
 
 @app.get("/wines", response_model=List[WineResponse])
-def get_wines(db: Session = Depends(get_db)):
+def get_wines(db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
     settings = db.get(AppSettings, 1)
     show_zero = settings and settings.show_zero_quantity_in_dashboard
     query = db.query(WineLibrary)
@@ -960,8 +927,12 @@ def get_wines(db: Session = Depends(get_db)):
     return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
 
+_SSE_MAX_CONNECTIONS = 50
+
 @app.get("/events")
-async def sse_events(request: Request):
+async def sse_events(request: Request, db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
+    if len(_sse_subscribers) >= _SSE_MAX_CONNECTIONS:
+        raise HTTPException(status_code=429, detail="Zu viele SSE-Verbindungen")
     q: asyncio.Queue = asyncio.Queue(maxsize=20)
     _sse_subscribers.append(q)
 
@@ -1003,7 +974,7 @@ def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(requi
 
 
 @app.get("/wines/{wine_id}", response_model=WineResponse)
-def get_wine(wine_id: int, db: Session = Depends(get_db)):
+def get_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_login_or_kiosk)):
     wine = db.get(WineLibrary, wine_id)
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
@@ -1061,14 +1032,14 @@ def delete_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_a
 # ── Library endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/library", response_model=List[WineResponse])
-def get_library(db: Session = Depends(get_db)):
+def get_library(db: Session = Depends(get_db), _=Depends(require_login)):
     wines = db.query(WineLibrary).order_by(WineLibrary.saved_at.desc()).all()
     cv_map = _load_cvs(db, [w.id for w in wines])
     return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
 
 @app.get("/library/search")
-def search_library(q: str, db: Session = Depends(get_db)):
+def search_library(q: str, db: Session = Depends(get_db), _=Depends(require_login)):
     if not q.strip():
         return []
     pat = f"%{q.lower()}%"
@@ -1125,56 +1096,7 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), _=Depends
     return {"ok": True}
 
 
-# ── Search & lookup ───────────────────────────────────────────────────────────
-
-@app.get("/search")
-async def search_wines(q: str, _=Depends(require_login)):
-    if not q.strip():
-        return []
-    if not WINEAPI_KEY:
-        raise HTTPException(status_code=503, detail="WINEAPI_KEY nicht konfiguriert")
-    try:
-        async with httpx.AsyncClient(timeout=15.0, headers=WINEAPI_HEADERS) as client:
-            resp = await client.get(f"{WINEAPI_BASE}/wines/search", params={"q": q, "limit": 10})
-        if resp.status_code == 401:
-            raise HTTPException(status_code=503, detail="WineAPI-Schlüssel ungültig")
-        if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail="WineAPI nicht erreichbar")
-        results = []
-        for item in resp.json().get("results", []):
-            winery = item.get("winery") or {}
-            region = item.get("region") or {}
-            results.append({
-                "wineapi_id": item.get("id", ""),
-                "name": item.get("name", ""),
-                "producer": winery.get("name", "") if isinstance(winery, dict) else str(winery),
-                "type": _wineapi_type(item.get("type")),
-                "region": region.get("name", "") if isinstance(region, dict) else str(region),
-                "country": region.get("country", "") if isinstance(region, dict) else "",
-                "rating": _rating_from_avg(item.get("averageRating")),
-                "image_url": item.get("imageUrl") or "",
-                "vintage": item.get("vintage"),
-            })
-        return results
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Search error: {e}")
-        raise HTTPException(status_code=502, detail="WineAPI nicht erreichbar")
-
-
-@app.get("/wine-details/{wineapi_id}")
-async def get_wine_details(wineapi_id: str, _=Depends(require_login)):
-    if not WINEAPI_KEY:
-        raise HTTPException(status_code=503, detail="WINEAPI_KEY nicht konfiguriert")
-    async with httpx.AsyncClient(timeout=15.0, headers=WINEAPI_HEADERS) as client:
-        resp = await client.get(f"{WINEAPI_BASE}/wines/{wineapi_id}")
-    if resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="Wein nicht gefunden")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="WineAPI nicht erreichbar")
-    return _parse_wineapi(resp.json())
-
+# ── Lookup ───────────────────────────────────────────────────────────────────
 
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
@@ -1195,7 +1117,7 @@ async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
 
 
 @app.get("/lookup/{barcode}")
-async def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(require_login)):
+def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(require_login)):
     lib = db.query(WineLibrary).filter(WineLibrary.barcode == barcode).first()
     if lib:
         return {
@@ -1206,59 +1128,9 @@ async def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(
             "notes": lib.notes, "price": lib.price, "barcode": lib.barcode,
             "image_url": lib.image_url, "body": lib.body, "acidity": lib.acidity,
             "pairings": lib.pairings, "description": lib.description,
-            "wineapi_id": lib.wineapi_id, "quantity": lib.quantity,
+            "quantity": lib.quantity,
         }
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "KellerLog/1.0"}) as client:
-            resp = await client.get(f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json")
-        if resp.status_code != 200:
-            return None
-        data = resp.json()
-        if data.get("status") != 1:
-            return None
-        product = data.get("product", {})
-        name = product.get("product_name") or product.get("product_name_de") or ""
-        if not name:
-            return None
-    except Exception:
-        return None
-
-    off_image = product.get("image_front_url") or product.get("image_url") or ""
-    off_brands = product.get("brands") or ""
-
-    if WINEAPI_KEY:
-        try:
-            async with httpx.AsyncClient(timeout=10.0, headers=WINEAPI_HEADERS) as client:
-                resp = await client.get(f"{WINEAPI_BASE}/wines/search", params={"q": name, "limit": 1})
-            if resp.status_code == 200:
-                results = resp.json().get("results", [])
-                if results:
-                    item = results[0]
-                    winery = item.get("winery") or {}
-                    region = item.get("region") or {}
-                    return {
-                        "wineapi_id": item.get("id", ""),
-                        "name": item.get("name", name),
-                        "producer": winery.get("name", "") if isinstance(winery, dict) else str(winery),
-                        "type": _wineapi_type(item.get("type")),
-                        "region": region.get("name", "") if isinstance(region, dict) else str(region),
-                        "country": region.get("country", "") if isinstance(region, dict) else "",
-                        "rating": _rating_from_avg(item.get("averageRating")),
-                        "image_url": item.get("imageUrl") or off_image,
-                        "vintage": item.get("vintage"),
-                        "barcode": barcode,
-                    }
-        except Exception:
-            pass
-
-    countries = product.get("countries_tags") or []
-    country = countries[0].replace("en:", "").title() if countries else ""
-    return {
-        "wineapi_id": "", "name": name, "producer": off_brands,
-        "type": "red", "region": "", "country": country,
-        "rating": None, "image_url": off_image, "vintage": None, "barcode": barcode,
-    }
+    return None
 
 
 _EXPORT_FIELDS = [
@@ -1352,7 +1224,7 @@ async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_d
 
 
 @app.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(db: Session = Depends(get_db), _=Depends(require_login)):
     wines = db.query(WineLibrary).filter(WineLibrary.quantity > 0).all()
     total_bottles = sum(w.quantity for w in wines)
     type_counts: dict = {}

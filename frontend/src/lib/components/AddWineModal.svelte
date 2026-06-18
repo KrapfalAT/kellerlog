@@ -26,7 +26,7 @@
     region: '', country: '', type: 'red', alcohol: null,
     rating: null, quantity: 1, notes: '', price: null,
     barcode: '', image_url: '', body: '', acidity: '',
-    pairings: '', description: '', wineapi_id: '', by_glass: false, price_per_glass: null,
+    pairings: '', description: '', by_glass: false, price_per_glass: null,
     location: ''
   };
 

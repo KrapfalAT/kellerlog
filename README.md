@@ -21,7 +21,7 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 - Click any wine to open a detail panel with a full-screen image lightbox
 
 **Barcode scanner**
-- Scan a bottle's EAN/UPC to auto-fill wine details from the local library or WineAPI
+- Scan a bottle's EAN/UPC to auto-fill wine details from the local library
 - Works on mobile via the camera; also available as a manual text input
 
 **Wine library**
@@ -103,7 +103,6 @@ services:
       - KELLERLOG_SECRET_KEY=${KELLERLOG_SECRET_KEY}
       - KELLERLOG_ADMIN_USER=${KELLERLOG_ADMIN_USER:-admin}
       - KELLERLOG_ADMIN_PASSWORD=${KELLERLOG_ADMIN_PASSWORD}
-      - WINEAPI_KEY=${WINEAPI_KEY:-}
     restart: unless-stopped
 
   frontend:
@@ -127,9 +126,6 @@ KELLERLOG_SECRET_KEY=your_secret_key_here
 # Admin account (created on first run if no users exist)
 KELLERLOG_ADMIN_USER=admin
 KELLERLOG_ADMIN_PASSWORD=your_admin_password_here
-
-# Optional — enables barcode lookup and wine search (https://wineapi.io)
-WINEAPI_KEY=
 ```
 
 > If `KELLERLOG_ADMIN_PASSWORD` is not set, a random password is generated at startup and printed once to the container logs.
@@ -159,7 +155,6 @@ docker compose pull && docker compose up -d
 | `KELLERLOG_SECRET_KEY` | **Yes** | — | JWT signing secret. Must persist across restarts. |
 | `KELLERLOG_ADMIN_USER` | No | `admin` | Username for the initial admin account (first run only). |
 | `KELLERLOG_ADMIN_PASSWORD` | Recommended | *(auto-generated)* | Password for the initial admin account. |
-| `WINEAPI_KEY` | No | — | API key for barcode lookup and wine search ([wineapi.io](https://wineapi.io)). |
 | `BACKEND_HOST` | No | `backend` | Hostname of the backend service as seen by nginx. |
 
 ### User management
@@ -216,23 +211,23 @@ The backend exposes a REST API at `/api/`. Write endpoints require a `Bearer` to
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/wines` | — | List wines |
+| `GET` | `/api/wines` | Login or Kiosk | List wines |
 | `POST` | `/api/wines` | Admin | Add wine |
 | `PUT` | `/api/wines/{id}` | Admin | Update wine |
 | `PUT` | `/api/wines/batch` | Admin | Batch update |
 | `DELETE` | `/api/wines/{id}` | Admin | Delete wine |
-| `GET` | `/api/stats` | — | Collection statistics |
-| `GET` | `/api/lookup/{barcode}` | Any | Barcode lookup |
-| `GET` | `/api/export/json` | Any | Export as JSON |
-| `GET` | `/api/export/csv` | Any | Export as CSV |
+| `GET` | `/api/stats` | Login | Collection statistics |
+| `GET` | `/api/lookup/{barcode}` | Login | Local library barcode lookup |
+| `GET` | `/api/export/json` | Login | Export as JSON |
+| `GET` | `/api/export/csv` | Login | Export as CSV |
 | `POST` | `/api/import` | Admin | Import JSON or CSV |
 
 ### Library
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/library` | Any | List library entries |
-| `GET` | `/api/library/search?q=` | Any | Search library |
+| `GET` | `/api/library` | Login | List library entries |
+| `GET` | `/api/library/search?q=` | Login | Search library |
 | `PUT` | `/api/library/{id}` | Admin | Update library entry |
 | `DELETE` | `/api/library/{id}` | Admin | Delete library entry |
 
@@ -240,13 +235,13 @@ The backend exposes a REST API at `/api/`. Write endpoints require a `Bearer` to
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/settings` | — | App and kiosk settings |
+| `GET` | `/api/settings` | Login or Kiosk | App and kiosk settings |
 | `PUT` | `/api/settings` | Admin | Update settings |
-| `GET` | `/api/drink-rules` | — | List drink-window rules |
+| `GET` | `/api/drink-rules` | Login or Kiosk | List drink-window rules |
 | `POST` | `/api/drink-rules` | Admin | Create rule |
 | `PUT` | `/api/drink-rules/{id}` | Admin | Update rule |
 | `DELETE` | `/api/drink-rules/{id}` | Admin | Delete rule |
-| `GET` | `/api/custom-fields` | — | List custom fields |
+| `GET` | `/api/custom-fields` | Login or Kiosk | List custom fields |
 | `POST` | `/api/custom-fields` | Admin | Create custom field |
 | `PUT` | `/api/custom-fields/{id}` | Admin | Update custom field |
 | `DELETE` | `/api/custom-fields/{id}` | Admin | Delete custom field |
@@ -255,7 +250,7 @@ The backend exposes a REST API at `/api/`. Write endpoints require a `Bearer` to
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/events` | — | SSE stream; emits `wines` event on any collection change |
+| `GET` | `/api/events` | Login or Kiosk | SSE stream; emits `wines` event on any collection change |
 
 ---
 

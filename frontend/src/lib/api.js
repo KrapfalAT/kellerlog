@@ -126,18 +126,6 @@ export async function deleteWine(id) {
   if (!r.ok) throw new Error('Fehler beim Löschen');
 }
 
-export async function searchWines(q) {
-  const r = await fetch(`${BASE}/search?q=${encodeURIComponent(q)}`);
-  if (r.status === 502 || r.status === 503) throw new Error('API_UNAVAILABLE');
-  if (!r.ok) return [];
-  return r.json();
-}
-
-export async function getWineDetails(wineapiId) {
-  const r = await fetch(`${BASE}/wine-details/${encodeURIComponent(wineapiId)}`);
-  if (!r.ok) return null;
-  return r.json();
-}
 
 export async function lookupBarcode(barcode) {
   const r = await fetch(`${BASE}/lookup/${barcode}`, { headers: authHeaders() });
@@ -192,7 +180,7 @@ export async function deleteLibraryEntry(id) {
 }
 
 export async function exportWines(format) {
-  const r = await fetch(`${BASE}/export/${format}`);
+  const r = await fetch(`${BASE}/export/${format}`, { headers: authHeaders() });
   if (!r.ok) throw new Error('Export fehlgeschlagen');
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);

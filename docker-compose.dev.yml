@@ -4,8 +4,7 @@ services:
     volumes:
       - ./kellerlog:/app/data
     environment:
-      - WINEAPI_KEY=${WINEAPI_KEY:-}
-      - KELLERLOG_SECRET_KEY=${KELLERLOG_SECRET_KEY:-dev-secret-do-not-use-in-production}
+      - KELLERLOG_SECRET_KEY=${KELLERLOG_SECRET_KEY:?KELLERLOG_SECRET_KEY must be set in .env}
       - KELLERLOG_ADMIN_USER=${KELLERLOG_ADMIN_USER:-admin}
       - KELLERLOG_ADMIN_PASSWORD=${KELLERLOG_ADMIN_PASSWORD:-}
     restart: unless-stopped
