@@ -25,6 +25,20 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # index.html — never cache so new deployments load immediately
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        try_files $uri =404;
+    }
+
+    # Hashed assets (JS, CSS) — cache forever, filename changes on deploy
+    location ~* \.(js|css)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
