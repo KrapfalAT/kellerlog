@@ -205,6 +205,11 @@
 
   /* ── Header (identical style to main page) ── */
   .kiosk-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
     background: linear-gradient(135deg, var(--header-start, #5a1328) 0%, var(--header-end, #3d0d1c) 100%);
     color: white;
     padding: 0 24px;
@@ -334,7 +339,7 @@
     max-width: 1400px;
     margin: 0 auto;
     width: 100%;
-    padding: 28px 24px 80px;
+    padding: 94px 24px 148px;
     flex: 1;
   }
 
@@ -381,6 +386,11 @@
   .empty-icon { font-size: 60px; }
 
   .kiosk-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
     text-align: center;
     padding: 16px;
     font-size: 12px;
@@ -401,6 +411,6 @@
     h1 { font-size: 18px; }
     .header-inner { padding: 12px 0; }
     .search-input { width: 150px; }
-    .kiosk-main { padding: 20px 16px 60px; }
+    .kiosk-main { padding: 148px 16px 148px; }
   }
 </style>

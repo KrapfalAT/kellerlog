@@ -720,6 +720,11 @@ function handleLibraryAddToInventory(e) {
 
   /* Header */
   .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
     background: linear-gradient(135deg, var(--header-start, #5a1328) 0%, var(--header-end, #3d0d1c) 100%);
     color: white;
     padding: 0 24px;
@@ -790,7 +795,7 @@ function handleLibraryAddToInventory(e) {
 
   .selection-bar {
     position: fixed;
-    bottom: 0;
+    bottom: 48px;
     left: 0;
     right: 0;
     background: var(--surface);
@@ -1086,11 +1091,16 @@ function handleLibraryAddToInventory(e) {
     max-width: 1400px;
     margin: 0 auto;
     width: 100%;
-    padding: 24px 24px 100px;
+    padding: 94px 24px 148px;
     flex: 1;
   }
 
   .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
     text-align: center;
     padding: 16px;
     font-size: 12px;
@@ -1246,7 +1256,7 @@ function handleLibraryAddToInventory(e) {
   /* FAB */
   .fab {
     position: fixed;
-    bottom: 32px;
+    bottom: 80px;
     right: 32px;
     width: 56px;
     height: 56px;
@@ -1271,7 +1281,7 @@ function handleLibraryAddToInventory(e) {
   /* Toast */
   .toast {
     position: fixed;
-    bottom: 32px;
+    bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
     background: var(--text);
@@ -1289,9 +1299,10 @@ function handleLibraryAddToInventory(e) {
   }
 
   @media (max-width: 600px) {
-    .header-inner { grid-template-columns: 1fr auto; }
-    .header-right { display: none; }
-    .control-right { width: 100%; }
+    .header-inner { grid-template-columns: 1fr auto auto; }
+    .stats-bar { display: none; }
+    .control-right { width: 100%; flex-wrap: wrap; }
+    .search-wrap { width: 100%; }
     .control-search { flex: 1; width: auto; }
   }
 </style>

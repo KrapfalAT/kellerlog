@@ -20,6 +20,8 @@
     return '★'.repeat(r) + '☆'.repeat(5 - r);
   }
 
+  let showLightbox = false;
+
   function handleBackdrop(e) {
     if (e.target === e.currentTarget) dispatch('close');
   }
@@ -30,6 +32,13 @@
   });
 </script>
 
+{#if showLightbox}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <div class="lightbox" on:click={() => showLightbox = false}>
+    <img src={wine.image_url} alt={wine.name} class="lightbox-img" />
+  </div>
+{/if}
+
 <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 <div class="overlay" on:click={handleBackdrop}>
   <div class="panel" role="dialog" aria-modal="true">
@@ -37,7 +46,8 @@
     <!-- Image -->
     <div class="image-side">
       {#if wine.image_url}
-        <img src={wine.image_url} alt={wine.name} class="wine-img" />
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <img src={wine.image_url} alt={wine.name} class="wine-img zoomable" on:click={() => showLightbox = true} />
       {:else}
         <div class="img-placeholder">
           <svg viewBox="0 0 64 100" fill="none">
@@ -218,6 +228,30 @@
     object-fit: contain;
     padding: 24px;
   }
+  .zoomable { cursor: zoom-in; }
+
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    animation: lbIn 0.18s ease;
+  }
+  @keyframes lbIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .lightbox-img {
+    max-width: 92vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+  }
 
   .img-placeholder {
     color: var(--primary);
@@ -266,7 +300,9 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
     position: relative;
+    overflow: hidden;
   }
 
   .detail-header-btns {
