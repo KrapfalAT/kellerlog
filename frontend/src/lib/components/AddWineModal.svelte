@@ -285,7 +285,7 @@
                 <input id="producer" type="text" bind:value={form.producer} placeholder={$t('modal_field_producer')} />
               </div>
 
-              <div class="field-divider span-2"></div>
+              <div class="field-divider"></div>
 
               <!-- Herkunft -->
               <div class="field">
@@ -341,7 +341,7 @@
                 </div>
               </div>
 
-              <div class="field-divider span-2"></div>
+              <div class="field-divider"></div>
 
               <div class="field span-2">
                 <label for="description">{$t('modal_field_description')}</label>
@@ -358,7 +358,7 @@
                 <input id="pairings" type="text" bind:value={form.pairings} placeholder={$t('modal_field_pairings')} />
               </div>
 
-              <div class="field-divider span-2"></div>
+              <div class="field-divider"></div>
 
               {#if !hideStock}
               <div class="field">
@@ -412,7 +412,7 @@
               {/if}
 
               <!-- Barcode at the bottom -->
-              <div class="field-divider span-2"></div>
+              <div class="field-divider"></div>
 
               <div class="field span-2">
                 <label class="field-label" for="barcode-input">{$t('modal_auto_search')}</label>
@@ -644,9 +644,10 @@
 
   /* ── Field divider ─────────────────────────────────────── */
   .field-divider {
+    grid-column: 1 / -1;
     height: 1px;
     background: var(--border);
-    margin: 2px 0;
+    margin: 4px 0;
   }
 
   /* ── Form grid ──────────────────────────────────────────── */
