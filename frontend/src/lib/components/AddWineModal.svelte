@@ -232,7 +232,26 @@
             </button>
           </div>
 
-          <!-- Bewertung unter den Buttons -->
+          <!-- Barcode -->
+          <div class="panel-barcode">
+            <div class="search-row">
+              <input
+                type="text"
+                id="barcode-input"
+                class="search-input"
+                placeholder={$t('modal_search_placeholder')}
+                bind:value={form.barcode}
+              />
+              <button class="btn-scan" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bewertung -->
           <div class="panel-rating">
             <label class="panel-rating-label" id="panel-rating-label">{$t('modal_field_rating')}</label>
             <div class="star-rating" role="group" aria-labelledby="panel-rating-label">
@@ -412,28 +431,6 @@
                   {/each}
                 </div>
               {/if}
-
-              <!-- Barcode at the bottom -->
-              <div class="field-divider"></div>
-
-              <div class="field span-2">
-                <label class="field-label" for="barcode-input">{$t('modal_auto_search')}</label>
-                <div class="search-row">
-                  <input
-                    type="text"
-                    id="barcode-input"
-                    class="search-input"
-                    placeholder={$t('modal_search_placeholder')}
-                    bind:value={form.barcode}
-                  />
-                  <button class="btn-scan" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
 
             </div>
           </form>
@@ -635,6 +632,13 @@
   }
   .btn-camera:hover:not(:disabled) { background: var(--surface); color: var(--primary); }
   .btn-camera:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .panel-barcode .search-row { gap: 5px; }
+  .panel-barcode .search-input {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .panel-barcode .btn-scan { width: 32px; }
 
   .panel-rating {
     display: flex;
