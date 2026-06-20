@@ -46,7 +46,6 @@
   let showScanner = false;
   let uploading = false;
   let fileInput;
-  let activeTab = 'basis';
 
   $: googleImagesUrl = (() => {
     const parts = [form.name, form.producer, form.vintage].filter(Boolean);
@@ -234,223 +233,204 @@
 
         <!-- ─── Right: Content ────────────────────────────────── -->
         <div class="modal-content">
-
-          <!-- Barcode -->
-          <div class="search-section">
-            <label class="field-label" for="barcode-input">{$t('modal_auto_search')}</label>
-            <div class="search-row">
-              <input
-                type="text"
-                id="barcode-input"
-                class="search-input"
-                placeholder={$t('modal_search_placeholder')}
-                bind:value={form.barcode}
-              />
-              <button class="btn-scan" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Tabs -->
-          <div class="tabs" role="tablist">
-            <button type="button" role="tab" class:active={activeTab === 'basis'}   on:click={() => activeTab = 'basis'}>Basis</button>
-            <button type="button" role="tab" class:active={activeTab === 'details'} on:click={() => activeTab = 'details'}>Details</button>
-            <button type="button" role="tab" class:active={activeTab === 'notizen'} on:click={() => activeTab = 'notizen'}>Notizen</button>
-            <button type="button" role="tab" class:active={activeTab === 'lager'}   on:click={() => activeTab = 'lager'}>Lager</button>
-          </div>
-
           <form on:submit|preventDefault={handleSubmit} id="wine-form">
             {#if error}
               <p class="error">{$t(error)}</p>
             {/if}
 
-            <!-- ── Basis ── -->
-            {#if activeTab === 'basis'}
-              <div class="form-grid">
+            <div class="form-grid">
 
-                <div class="field span-2">
-                  <div class="label-row">
-                    <label for="name">{$t('modal_field_name')}</label>
-                    {#if form.barcode}
-                      <span class="barcode-badge">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                          <rect x="1"  y="4" width="2" height="16"/>
-                          <rect x="5"  y="4" width="1" height="16"/>
-                          <rect x="8"  y="4" width="2" height="16"/>
-                          <rect x="12" y="4" width="1" height="16"/>
-                          <rect x="15" y="4" width="2" height="16"/>
-                          <rect x="19" y="4" width="1" height="16"/>
-                          <rect x="22" y="4" width="1" height="16"/>
-                        </svg>
-                        {form.barcode}
-                      </span>
-                    {/if}
-                  </div>
-                  <input id="name" type="text" bind:value={form.name} placeholder={$t('modal_field_name')} required />
+              <!-- Name + barcode badge -->
+              <div class="field span-2">
+                <div class="label-row">
+                  <label for="name">{$t('modal_field_name')}</label>
+                  {#if form.barcode}
+                    <span class="barcode-badge">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="1"  y="4" width="2" height="16"/>
+                        <rect x="5"  y="4" width="1" height="16"/>
+                        <rect x="8"  y="4" width="2" height="16"/>
+                        <rect x="12" y="4" width="1" height="16"/>
+                        <rect x="15" y="4" width="2" height="16"/>
+                        <rect x="19" y="4" width="1" height="16"/>
+                        <rect x="22" y="4" width="1" height="16"/>
+                      </svg>
+                      {form.barcode}
+                    </span>
+                  {/if}
                 </div>
-
-                <div class="field span-2">
-                  <label>{$t('modal_field_type')}</label>
-                  <div class="type-pills">
-                    {#each typePills as pill}
-                      <button type="button" class="type-pill" class:active={form.type === pill.value} on:click={() => form.type = pill.value}>
-                        <span class="pill-emoji">{pill.emoji}</span>
-                        <span class="pill-label">{pill.label}</span>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-
-                <div class="field">
-                  <label for="vintage">{$t('modal_field_vintage')}</label>
-                  <input id="vintage" type="number" bind:value={form.vintage} placeholder="2019" min="1900" max="2100" />
-                </div>
-
-                <div class="field">
-                  <label for="producer">{$t('modal_field_producer')}</label>
-                  <input id="producer" type="text" bind:value={form.producer} placeholder={$t('modal_field_producer')} />
-                </div>
-
-                <div class="field span-2">
-                  <label id="rating-label">{$t('modal_field_rating')}</label>
-                  <div class="star-rating" role="group" aria-labelledby="rating-label">
-                    {#each [1,2,3,4,5] as n}
-                      <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
-                    {/each}
-                    {#if form.rating}
-                      <span class="rating-label">{form.rating}/5</span>
-                    {/if}
-                  </div>
-                </div>
-
+                <input id="name" type="text" bind:value={form.name} placeholder={$t('modal_field_name')} required />
               </div>
 
-            <!-- ── Details ── -->
-            {:else if activeTab === 'details'}
-              <div class="form-grid">
-
-                <div class="field">
-                  <label for="grape">{$t('modal_field_grape')}</label>
-                  <input id="grape" type="text" bind:value={form.grape} placeholder={$t('modal_field_grape')} />
+              <!-- Type pills -->
+              <div class="field span-2">
+                <label>{$t('modal_field_type')}</label>
+                <div class="type-pills">
+                  {#each typePills as pill}
+                    <button type="button" class="type-pill" class:active={form.type === pill.value} on:click={() => form.type = pill.value}>
+                      <span class="pill-emoji">{pill.emoji}</span>
+                      <span class="pill-label">{pill.label}</span>
+                    </button>
+                  {/each}
                 </div>
-
-                <div class="field">
-                  <label for="region">{$t('modal_field_region')}</label>
-                  <input id="region" type="text" bind:value={form.region} placeholder={$t('modal_field_region')} />
-                </div>
-
-                <div class="field">
-                  <label for="country">{$t('modal_field_country')}</label>
-                  <input id="country" type="text" bind:value={form.country} placeholder={$t('modal_field_country')} />
-                </div>
-
-                <div class="field">
-                  <label for="alcohol">{$t('modal_field_alcohol')}</label>
-                  <input id="alcohol" type="number" bind:value={form.alcohol} placeholder="13.5" step="0.1" min="0" max="25" />
-                </div>
-
-                <div class="field span-2">
-                  <label>{$t('modal_field_body')}</label>
-                  <div class="segment-ctrl">
-                    <button type="button" class:seg-active={form.body === 'Light-bodied'}  on:click={() => form.body = form.body === 'Light-bodied'  ? '' : 'Light-bodied'}>{$t('body_light')}</button>
-                    <button type="button" class:seg-active={form.body === 'Medium-bodied'} on:click={() => form.body = form.body === 'Medium-bodied' ? '' : 'Medium-bodied'}>{$t('body_medium')}</button>
-                    <button type="button" class:seg-active={form.body === 'Full-bodied'}   on:click={() => form.body = form.body === 'Full-bodied'   ? '' : 'Full-bodied'}>{$t('body_full')}</button>
-                  </div>
-                </div>
-
-                <div class="field span-2">
-                  <label>{$t('modal_field_acidity')}</label>
-                  <div class="segment-ctrl">
-                    <button type="button" class:seg-active={form.acidity === 'Low'}    on:click={() => form.acidity = form.acidity === 'Low'    ? '' : 'Low'}>{$t('acidity_low')}</button>
-                    <button type="button" class:seg-active={form.acidity === 'Medium'} on:click={() => form.acidity = form.acidity === 'Medium' ? '' : 'Medium'}>{$t('acidity_medium')}</button>
-                    <button type="button" class:seg-active={form.acidity === 'High'}   on:click={() => form.acidity = form.acidity === 'High'   ? '' : 'High'}>{$t('acidity_high')}</button>
-                  </div>
-                </div>
-
               </div>
 
-            <!-- ── Notizen ── -->
-            {:else if activeTab === 'notizen'}
-              <div class="form-grid">
+              <div class="field">
+                <label for="vintage">{$t('modal_field_vintage')}</label>
+                <input id="vintage" type="number" bind:value={form.vintage} placeholder="2019" min="1900" max="2100" />
+              </div>
 
-                <div class="field span-2">
-                  <label for="description">{$t('modal_field_description')}</label>
-                  <textarea id="description" bind:value={form.description} placeholder={$t('modal_field_description')} rows="2" use:autoResize></textarea>
+              <div class="field">
+                <label for="producer">{$t('modal_field_producer')}</label>
+                <input id="producer" type="text" bind:value={form.producer} placeholder={$t('modal_field_producer')} />
+              </div>
+
+              <!-- Rating -->
+              <div class="field span-2">
+                <label id="rating-label">{$t('modal_field_rating')}</label>
+                <div class="star-rating" role="group" aria-labelledby="rating-label">
+                  {#each [1,2,3,4,5] as n}
+                    <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
+                  {/each}
+                  {#if form.rating}
+                    <span class="rating-label">{form.rating}/5</span>
+                  {/if}
                 </div>
+              </div>
 
-                <div class="field span-2">
-                  <label for="notes">{$t('modal_field_notes')}</label>
-                  <textarea id="notes" bind:value={form.notes} placeholder={$t('modal_field_notes')} rows="2" use:autoResize></textarea>
+              <div class="field-divider span-2"></div>
+
+              <div class="field">
+                <label for="grape">{$t('modal_field_grape')}</label>
+                <input id="grape" type="text" bind:value={form.grape} placeholder={$t('modal_field_grape')} />
+              </div>
+
+              <div class="field">
+                <label for="region">{$t('modal_field_region')}</label>
+                <input id="region" type="text" bind:value={form.region} placeholder={$t('modal_field_region')} />
+              </div>
+
+              <div class="field">
+                <label for="country">{$t('modal_field_country')}</label>
+                <input id="country" type="text" bind:value={form.country} placeholder={$t('modal_field_country')} />
+              </div>
+
+              <div class="field">
+                <label for="alcohol">{$t('modal_field_alcohol')}</label>
+                <input id="alcohol" type="number" bind:value={form.alcohol} placeholder="13.5" step="0.1" min="0" max="25" />
+              </div>
+
+              <div class="field span-2">
+                <label>{$t('modal_field_body')}</label>
+                <div class="segment-ctrl">
+                  <button type="button" class:seg-active={form.body === 'Light-bodied'}  on:click={() => form.body = form.body === 'Light-bodied'  ? '' : 'Light-bodied'}>{$t('body_light')}</button>
+                  <button type="button" class:seg-active={form.body === 'Medium-bodied'} on:click={() => form.body = form.body === 'Medium-bodied' ? '' : 'Medium-bodied'}>{$t('body_medium')}</button>
+                  <button type="button" class:seg-active={form.body === 'Full-bodied'}   on:click={() => form.body = form.body === 'Full-bodied'   ? '' : 'Full-bodied'}>{$t('body_full')}</button>
                 </div>
+              </div>
 
-                <div class="field span-2">
-                  <label for="pairings">{$t('modal_field_pairings')}</label>
-                  <input id="pairings" type="text" bind:value={form.pairings} placeholder={$t('modal_field_pairings')} />
+              <div class="field span-2">
+                <label>{$t('modal_field_acidity')}</label>
+                <div class="segment-ctrl">
+                  <button type="button" class:seg-active={form.acidity === 'Low'}    on:click={() => form.acidity = form.acidity === 'Low'    ? '' : 'Low'}>{$t('acidity_low')}</button>
+                  <button type="button" class:seg-active={form.acidity === 'Medium'} on:click={() => form.acidity = form.acidity === 'Medium' ? '' : 'Medium'}>{$t('acidity_medium')}</button>
+                  <button type="button" class:seg-active={form.acidity === 'High'}   on:click={() => form.acidity = form.acidity === 'High'   ? '' : 'High'}>{$t('acidity_high')}</button>
                 </div>
+              </div>
 
-                <div class="field span-2">
-                  <label class="toggle-row">
-                    <div>
-                      <div class="toggle-label">{$t('modal_field_by_glass')}</div>
-                      <div class="toggle-desc">{$t('modal_field_by_glass_desc')}</div>
+              <div class="field-divider span-2"></div>
+
+              <div class="field span-2">
+                <label for="description">{$t('modal_field_description')}</label>
+                <textarea id="description" bind:value={form.description} placeholder={$t('modal_field_description')} rows="2" use:autoResize></textarea>
+              </div>
+
+              <div class="field span-2">
+                <label for="notes">{$t('modal_field_notes')}</label>
+                <textarea id="notes" bind:value={form.notes} placeholder={$t('modal_field_notes')} rows="2" use:autoResize></textarea>
+              </div>
+
+              <div class="field span-2">
+                <label for="pairings">{$t('modal_field_pairings')}</label>
+                <input id="pairings" type="text" bind:value={form.pairings} placeholder={$t('modal_field_pairings')} />
+              </div>
+
+              <div class="field-divider span-2"></div>
+
+              {#if !hideStock}
+              <div class="field">
+                <label for="quantity">{$t('modal_field_quantity')}</label>
+                <input id="quantity" type="number" bind:value={form.quantity} min="0" />
+              </div>
+              {/if}
+
+              <div class="field">
+                <label for="price">{$t('modal_field_price')}</label>
+                <input id="price" type="number" bind:value={form.price} placeholder="0.00" step="0.01" min="0" />
+              </div>
+
+              <div class="field span-2">
+                <label for="location">{$t('modal_field_location')}</label>
+                <input id="location" type="text" bind:value={form.location} placeholder="z.B. Regal A3, Kühlschrank" />
+              </div>
+
+              <div class="field span-2">
+                <label class="toggle-row">
+                  <div>
+                    <div class="toggle-label">{$t('modal_field_by_glass')}</div>
+                    <div class="toggle-desc">{$t('modal_field_by_glass_desc')}</div>
+                  </div>
+                  <input type="checkbox" bind:checked={form.by_glass} class="toggle-input" />
+                  <span class="toggle-track" class:on={form.by_glass}><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+
+              {#if form.by_glass}
+              <div class="field span-2">
+                <label for="price_per_glass">{$t('modal_field_price_per_glass')}</label>
+                <input id="price_per_glass" type="number" bind:value={form.price_per_glass} placeholder="0.00" step="0.01" min="0" />
+              </div>
+              {/if}
+
+              {#if customFields.length > 0}
+                <div class="field span-2 custom-section">
+                  <div class="custom-section-label">{$t('custom_fields_in_modal')}</div>
+                  {#each customFields as cf (cf.key)}
+                    <div class="field">
+                      <label for="cf-{cf.key}">{$lang === 'de' ? cf.label_de : (cf.label_en || cf.label_de)}</label>
+                      {#if cf.field_type === 'textarea'}
+                        <textarea id="cf-{cf.key}" bind:value={customValues[cf.key]} rows="1" use:autoResize></textarea>
+                      {:else}
+                        <input id="cf-{cf.key}" type={cf.field_type === 'number' ? 'number' : cf.field_type === 'date' ? 'date' : 'text'} bind:value={customValues[cf.key]} />
+                      {/if}
                     </div>
-                    <input type="checkbox" bind:checked={form.by_glass} class="toggle-input" />
-                    <span class="toggle-track" class:on={form.by_glass}><span class="toggle-thumb"></span></span>
-                  </label>
+                  {/each}
                 </div>
+              {/if}
 
-                {#if form.by_glass}
-                <div class="field span-2">
-                  <label for="price_per_glass">{$t('modal_field_price_per_glass')}</label>
-                  <input id="price_per_glass" type="number" bind:value={form.price_per_glass} placeholder="0.00" step="0.01" min="0" />
+              <!-- Barcode at the bottom -->
+              <div class="field-divider span-2"></div>
+
+              <div class="field span-2">
+                <label class="field-label" for="barcode-input">{$t('modal_auto_search')}</label>
+                <div class="search-row">
+                  <input
+                    type="text"
+                    id="barcode-input"
+                    class="search-input"
+                    placeholder={$t('modal_search_placeholder')}
+                    bind:value={form.barcode}
+                  />
+                  <button class="btn-scan" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </button>
                 </div>
-                {/if}
-
               </div>
 
-            <!-- ── Lager ── -->
-            {:else}
-              <div class="form-grid">
-
-                {#if !hideStock}
-                <div class="field">
-                  <label for="quantity">{$t('modal_field_quantity')}</label>
-                  <input id="quantity" type="number" bind:value={form.quantity} min="0" />
-                </div>
-                {/if}
-
-                <div class="field">
-                  <label for="price">{$t('modal_field_price')}</label>
-                  <input id="price" type="number" bind:value={form.price} placeholder="0.00" step="0.01" min="0" />
-                </div>
-
-                <div class="field span-2">
-                  <label for="location">{$t('modal_field_location')}</label>
-                  <input id="location" type="text" bind:value={form.location} placeholder="z.B. Regal A3, Kühlschrank" />
-                </div>
-
-                {#if customFields.length > 0}
-                  <div class="field span-2 custom-section">
-                    <div class="custom-section-label">{$t('custom_fields_in_modal')}</div>
-                    {#each customFields as cf (cf.key)}
-                      <div class="field">
-                        <label for="cf-{cf.key}">{$lang === 'de' ? cf.label_de : (cf.label_en || cf.label_de)}</label>
-                        {#if cf.field_type === 'textarea'}
-                          <textarea id="cf-{cf.key}" bind:value={customValues[cf.key]} rows="1" use:autoResize></textarea>
-                        {:else}
-                          <input id="cf-{cf.key}" type={cf.field_type === 'number' ? 'number' : cf.field_type === 'date' ? 'date' : 'text'} bind:value={customValues[cf.key]} />
-                        {/if}
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-
-              </div>
-            {/if}
+            </div>
           </form>
         </div>
       </div>
@@ -628,7 +608,6 @@
   }
 
   /* ── Barcode search ─────────────────────────────────────── */
-  .search-section { margin-bottom: 14px; }
   .search-row { display: flex; gap: 8px; align-items: stretch; }
   .field-label {
     display: block;
@@ -660,28 +639,12 @@
     background: rgba(123, 29, 63, 0.05);
   }
 
-  /* ── Tabs ───────────────────────────────────────────────── */
-  .tabs {
-    display: flex;
-    border-bottom: 2px solid var(--border);
-    margin-bottom: 16px;
-    flex-shrink: 0;
+  /* ── Field divider ─────────────────────────────────────── */
+  .field-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 2px 0;
   }
-  .tabs button {
-    background: none; border: none;
-    padding: 7px 16px;
-    font-size: 13px; font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .tabs button.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-  }
-  .tabs button:hover:not(.active) { color: var(--text); }
 
   /* ── Form grid ──────────────────────────────────────────── */
   .form-grid {
@@ -935,7 +898,6 @@
     .modal-content { padding: 14px 16px; }
     .form-grid { grid-template-columns: 1fr; }
     .field.span-2 { grid-column: 1; }
-    .tabs button { padding: 7px 10px; font-size: 12px; }
   }
 
   /* ── Bottom-sheet on very small screens ─────────────────── */
