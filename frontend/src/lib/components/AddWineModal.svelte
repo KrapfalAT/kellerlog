@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import { lookupBarcode, uploadImage } from '$lib/api.js';
+  import { lookupBarcode, uploadImage, searchImages, uploadFromUrl } from '$lib/api.js';
   import { t, lang } from '$lib/stores/i18n.js';
   import BarcodeScanner from './BarcodeScanner.svelte';
 
@@ -46,6 +46,41 @@
   let showScanner = false;
   let uploading = false;
   let fileInput;
+
+  let imageSearchResults = [];
+  let imageSearching = false;
+  let imageSearchOpen = false;
+  let imagePickLoading = null;
+
+  async function handleImageSearch() {
+    const parts = [form.name, form.producer, form.vintage, form.barcode].filter(Boolean);
+    if (!parts.length) return;
+    const q = parts.join(' ') + ' wine bottle';
+    imageSearching = true;
+    imageSearchOpen = true;
+    imageSearchResults = [];
+    try {
+      imageSearchResults = await searchImages(q);
+    } catch {
+      imageSearchResults = [];
+    } finally {
+      imageSearching = false;
+    }
+  }
+
+  async function pickImage(result) {
+    imagePickLoading = result.url;
+    try {
+      const data = await uploadFromUrl(result.url);
+      form.image_url = data.url;
+      imageSearchOpen = false;
+      imageSearchResults = [];
+    } catch {
+      error = 'modal_error_upload';
+    } finally {
+      imagePickLoading = null;
+    }
+  }
 
   $: typeOptions = [
     { value: 'red',      label: $t('type_red') },
@@ -328,7 +363,49 @@
                   {$t('modal_photo_upload')}
                 {/if}
               </button>
+              <button type="button" class="btn-search-img" on:click={handleImageSearch}
+                disabled={imageSearching || (!form.name && !form.producer && !form.barcode)}>
+                {#if imageSearching}
+                  <div class="spinner-sm"></div>
+                  Suche…
+                {:else}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  Bilder suchen
+                {/if}
+              </button>
               <input type="text" id="image_url" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
+
+              {#if imageSearchOpen}
+                <div class="img-search-panel">
+                  <div class="img-search-header">
+                    <span>Google Bildersuche</span>
+                    <button type="button" class="close-search" on:click={() => imageSearchOpen = false}>×</button>
+                  </div>
+                  {#if imageSearching}
+                    <div class="img-search-loading"><div class="spinner-sm"></div> Suche läuft…</div>
+                  {:else if imageSearchResults.length === 0}
+                    <div class="img-search-empty">Keine Bilder gefunden</div>
+                  {:else}
+                    <div class="img-grid">
+                      {#each imageSearchResults as result}
+                        <button type="button" class="img-thumb"
+                          class:loading={imagePickLoading === result.url}
+                          on:click={() => pickImage(result)}
+                          title={result.title}>
+                          {#if imagePickLoading === result.url}
+                            <div class="spinner-sm"></div>
+                          {:else}
+                            <img src={result.thumbnail} alt={result.title}
+                              on:error={(e) => e.target.style.display='none'} />
+                          {/if}
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </div>
           </div>
         </div>
@@ -723,6 +800,81 @@
     background: rgba(123, 29, 63, 0.04);
   }
   .btn-upload:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-search-img {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-search-img:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .btn-search-img:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .img-search-panel {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .img-search-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .close-search {
+    background: none;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 2px;
+  }
+  .img-search-loading, .img-search-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    justify-content: center;
+  }
+  .img-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 6px;
+    padding: 10px;
+  }
+  .img-thumb {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    background: var(--surface-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, transform 0.1s;
+    padding: 0;
+  }
+  .img-thumb:hover { border-color: var(--primary); transform: scale(1.03); }
+  .img-thumb.loading { opacity: 0.6; }
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
   .url-input {
     padding: 8px 10px;
     border: 1.5px solid var(--border);

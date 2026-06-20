@@ -127,6 +127,23 @@ export async function deleteWine(id) {
 }
 
 
+export async function searchImages(q) {
+  const r = await fetch(`${BASE}/image-search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+  if (r.status === 503) return [];
+  if (!r.ok) throw new Error('Bildersuche fehlgeschlagen');
+  return r.json();
+}
+
+export async function uploadFromUrl(url) {
+  const r = await fetch(`${BASE}/upload-from-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ url }),
+  });
+  if (!r.ok) throw new Error('Upload fehlgeschlagen');
+  return r.json();
+}
+
 export async function lookupBarcode(barcode) {
   const r = await fetch(`${BASE}/lookup/${barcode}`, { headers: authHeaders() });
   if (!r.ok) return null;

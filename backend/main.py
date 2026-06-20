@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException, Depends, File, Header, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Depends, File, Header, Query, Request, UploadFile
+import httpx
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +28,9 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/wines.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+GOOGLE_CSE_KEY = os.getenv("GOOGLE_CSE_KEY", "")
+GOOGLE_CSE_ID  = os.getenv("GOOGLE_CSE_ID", "")
 
 # ── SSE broadcast ────────────────────────────────────────────────────────────
 _sse_subscribers: list[asyncio.Queue] = []
@@ -1124,6 +1128,69 @@ async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
     return {"url": f"/api/images/{filename}"}
+
+
+@app.get("/image-search")
+async def image_search(q: str = Query(..., min_length=1), _=Depends(require_login)):
+    if not GOOGLE_CSE_KEY or not GOOGLE_CSE_ID:
+        raise HTTPException(status_code=503, detail="Google Image Search nicht konfiguriert")
+    params = {
+        "key": GOOGLE_CSE_KEY,
+        "cx": GOOGLE_CSE_ID,
+        "q": q,
+        "searchType": "image",
+        "num": 10,
+        "safe": "active",
+        "imgType": "photo",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get("https://www.googleapis.com/customsearch/v1", params=params)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Google API Fehler")
+        items = resp.json().get("items") or []
+        return [
+            {
+                "url": item.get("link", ""),
+                "thumbnail": item.get("image", {}).get("thumbnailLink", item.get("link", "")),
+                "title": item.get("title", ""),
+            }
+            for item in items
+            if item.get("link")
+        ]
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Google API nicht erreichbar")
+
+
+@app.post("/upload-from-url")
+async def upload_from_url(body: dict, _=Depends(require_auth)):
+    url = (body.get("url") or "").strip()
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Nur HTTPS-URLs erlaubt")
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True,
+                                     headers={"User-Agent": "KellerLog/1.5"}) as client:
+            resp = await client.get(url)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Bild konnte nicht geladen werden")
+        content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="URL ist kein Bild")
+        data = resp.content
+        if not _valid_image_header(data[:12]):
+            raise HTTPException(status_code=400, detail="Ungültiges Bildformat")
+        ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+        ext = ext_map.get(content_type, ".jpg")
+        filename = f"{uuid.uuid4()}{ext}"
+        dest = IMAGES_DIR / filename
+        dest.write_bytes(data)
+        return {"url": f"/api/images/{filename}"}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Bild konnte nicht geladen werden")
 
 
 @app.get("/lookup/{barcode}")
