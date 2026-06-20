@@ -458,4 +458,8 @@
     padding: 0 8px;
   }
   .inv-qty.zero { color: var(--text-muted); }
+
+  @media (hover: none) {
+    .card-actions { opacity: 1; }
+  }
 </style>

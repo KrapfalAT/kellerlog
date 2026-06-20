@@ -176,6 +176,7 @@
 
         <!-- ─── Left: Image Panel ─────────────────────────────── -->
         <aside class="image-panel">
+          <span class="panel-section-label">Bild</span>
           <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
           <div class="img-container" class:has-image={!!form.image_url} on:click={() => { if (form.image_url) showLightbox = true; }}>
             {#if form.image_url}
@@ -198,69 +199,71 @@
 
           <input type="file" accept="image/*" capture="environment" bind:this={fileInput} on:change={handleFileUpload} style="display:none" />
 
-          <!-- URL + Kamera-Button kombiniert -->
-          <div class="url-upload-row">
-            <input type="text" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
-            <button type="button" class="btn-camera" on:click={() => fileInput.click()} disabled={uploading} title={$t('modal_photo_upload')}>
-              {#if uploading}
-                <span class="spinner-sm"></span>
-              {:else}
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
+          <div class="panel-controls">
+            <!-- URL + Kamera -->
+            <div class="url-upload-row">
+              <input type="text" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
+              <button type="button" class="btn-camera" on:click={() => fileInput.click()} disabled={uploading} title={$t('modal_photo_upload')}>
+                {#if uploading}
+                  <span class="spinner-sm"></span>
+                {:else}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                {/if}
+              </button>
+            </div>
+
+            <!-- Google + Einfügen -->
+            <div class="img-actions">
+              {#if googleImagesUrl}
+                <a href={googleImagesUrl} target="_blank" rel="noopener noreferrer" class="btn-img-action">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  Google
+                </a>
               {/if}
-            </button>
-          </div>
-
-          <div class="img-actions">
-            {#if googleImagesUrl}
-              <a href={googleImagesUrl} target="_blank" rel="noopener noreferrer" class="btn-img-action">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              <button type="button" class="btn-img-action" on:click={handlePasteClick} disabled={uploading}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
                 </svg>
-                Google
-              </a>
-            {/if}
-            <button type="button" class="btn-img-action" on:click={handlePasteClick} disabled={uploading}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-              </svg>
-              Einfügen
-            </button>
-          </div>
+                Einfügen
+              </button>
+            </div>
 
-          <!-- Barcode -->
-          <div class="panel-barcode">
-            <div class="search-row">
+            <!-- Barcode -->
+            <span class="panel-section-label">Barcode</span>
+            <div class="url-upload-row">
               <input
                 type="text"
                 id="barcode-input"
-                class="search-input"
+                class="url-input"
                 placeholder={$t('modal_search_placeholder')}
                 bind:value={form.barcode}
               />
-              <button class="btn-scan" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button class="btn-camera" type="button" title="Barcode scannen" on:click={() => showScanner = true}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
                   <circle cx="12" cy="13" r="4"/>
                 </svg>
               </button>
             </div>
-          </div>
 
-          <!-- Bewertung -->
-          <div class="panel-rating">
-            <label class="panel-rating-label" id="panel-rating-label">{$t('modal_field_rating')}</label>
-            <div class="star-rating" role="group" aria-labelledby="panel-rating-label">
-              {#each [1,2,3,4,5] as n}
-                <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
-              {/each}
-              {#if form.rating}
-                <span class="rating-label">{form.rating}/5</span>
-              {/if}
+            <!-- Bewertung -->
+            <div class="panel-rating">
+              <label class="panel-rating-label" id="panel-rating-label">{$t('modal_field_rating')}</label>
+              <div class="star-rating" role="group" aria-labelledby="panel-rating-label">
+                {#each [1,2,3,4,5] as n}
+                  <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
+                {/each}
+                {#if form.rating}
+                  <span class="rating-label">{form.rating}/5</span>
+                {/if}
+              </div>
             </div>
           </div>
         </aside>
@@ -565,6 +568,14 @@
     cursor: pointer;
   }
 
+  .panel-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+  }
+
   .img-actions {
     display: flex;
     flex-direction: row;
@@ -633,26 +644,27 @@
   .btn-camera:hover:not(:disabled) { background: var(--surface); color: var(--primary); }
   .btn-camera:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .panel-barcode .search-row { gap: 5px; }
-  .panel-barcode .search-input {
-    font-size: 11px;
-    padding: 6px 8px;
-  }
-  .panel-barcode .btn-scan { width: 32px; }
-
   .panel-rating {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding-top: 2px;
   }
-  .panel-rating-label {
+  .panel-rating-label,
+  .panel-section-label {
+    display: block;
     font-size: 11px;
     font-weight: 700;
+    font-family: inherit;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
+  /* Mehr Abstand über Barcode- und Bewertungs-Label */
+  .panel-controls .panel-section-label,
+  .panel-rating-label {
+    margin-top: 8px;
+  }
+  .panel-rating .star { font-size: 22px; padding: 0 1px; }
 
   /* ── Right content column ───────────────────────────────── */
   .modal-content {
@@ -930,36 +942,32 @@
   }
   .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
 
-  /* ── Mobile: compact image panel on top ─────────────────── */
+  /* ── Mobile: image panel als horizontaler Strip ─────────── */
   @media (max-width: 639px) {
     .modal-layout { flex-direction: column; }
 
     .image-panel {
       width: 100%;
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      grid-template-areas:
+        "label controls"
+        "img   controls";
+      column-gap: 10px;
+      row-gap: 4px;
       border-right: none;
       border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
-      gap: 10px;
+      padding: 12px 14px;
       overflow-y: visible;
     }
-    .img-container {
-      width: 72px;
-      aspect-ratio: 2 / 3;
-      flex-shrink: 0;
-    }
-    .img-actions {
-      flex-direction: column;
-      flex: 1;
-    }
-    .url-input { display: none; }
-    .img-uploading { width: 100%; }
+    .image-panel > .panel-section-label { grid-area: label; align-self: end; }
+    .img-container { grid-area: img; width: 100%; }
+    .panel-controls { grid-area: controls; min-width: 0; }
 
-    .modal-content { padding: 14px 16px; }
+    .modal-content { padding: 14px 16px; overflow-x: hidden; }
     .form-grid { grid-template-columns: 1fr; }
     .field.span-2 { grid-column: 1; }
+    .type-pills { flex-wrap: wrap; overflow-x: visible; }
   }
 
   /* ── Bottom-sheet on very small screens ─────────────────── */
