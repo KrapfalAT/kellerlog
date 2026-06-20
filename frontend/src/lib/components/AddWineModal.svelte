@@ -198,25 +198,31 @@
 
           <input type="file" accept="image/*" capture="environment" bind:this={fileInput} on:change={handleFileUpload} style="display:none" />
 
-          <div class="img-actions">
-            <button type="button" class="btn-img-action" on:click={() => fileInput.click()} disabled={uploading}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-              {$t('modal_photo_upload')}
+          <!-- URL + Kamera-Button kombiniert -->
+          <div class="url-upload-row">
+            <input type="text" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
+            <button type="button" class="btn-camera" on:click={() => fileInput.click()} disabled={uploading} title={$t('modal_photo_upload')}>
+              {#if uploading}
+                <span class="spinner-sm"></span>
+              {:else}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              {/if}
             </button>
+          </div>
 
+          <div class="img-actions">
             {#if googleImagesUrl}
               <a href={googleImagesUrl} target="_blank" rel="noopener noreferrer" class="btn-img-action">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
                   <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
-                Google Bilder
+                Google
               </a>
             {/if}
-
             <button type="button" class="btn-img-action" on:click={handlePasteClick} disabled={uploading}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
@@ -226,11 +232,18 @@
             </button>
           </div>
 
-          {#if uploading}
-            <span class="img-uploading"><span class="spinner-sm"></span> Wird hochgeladen…</span>
-          {/if}
-
-          <input type="text" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
+          <!-- Bewertung unter den Buttons -->
+          <div class="panel-rating">
+            <label class="panel-rating-label" id="panel-rating-label">{$t('modal_field_rating')}</label>
+            <div class="star-rating" role="group" aria-labelledby="panel-rating-label">
+              {#each [1,2,3,4,5] as n}
+                <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
+              {/each}
+              {#if form.rating}
+                <span class="rating-label">{form.rating}/5</span>
+              {/if}
+            </div>
+          </div>
         </aside>
 
         <!-- ─── Right: Content ────────────────────────────────── -->
@@ -327,19 +340,6 @@
                   <button type="button" class:seg-active={form.acidity === 'Low'}    on:click={() => form.acidity = form.acidity === 'Low'    ? '' : 'Low'}>{$t('acidity_low')}</button>
                   <button type="button" class:seg-active={form.acidity === 'Medium'} on:click={() => form.acidity = form.acidity === 'Medium' ? '' : 'Medium'}>{$t('acidity_medium')}</button>
                   <button type="button" class:seg-active={form.acidity === 'High'}   on:click={() => form.acidity = form.acidity === 'High'   ? '' : 'High'}>{$t('acidity_high')}</button>
-                </div>
-              </div>
-
-              <!-- Bewertung nach den Details -->
-              <div class="field span-2">
-                <label id="rating-label">{$t('modal_field_rating')}</label>
-                <div class="star-rating" role="group" aria-labelledby="rating-label">
-                  {#each [1,2,3,4,5] as n}
-                    <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
-                  {/each}
-                  {#if form.rating}
-                    <span class="rating-label">{form.rating}/5</span>
-                  {/if}
                 </div>
               </div>
 
@@ -570,24 +570,25 @@
 
   .img-actions {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 5px;
   }
   .btn-img-action {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 10px;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 6px;
     border: 1.5px solid var(--border);
     border-radius: 7px;
     background: var(--bg);
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: border-color 0.15s, color 0.15s;
     text-decoration: none;
-    width: 100%;
+    flex: 1;
   }
   .btn-img-action:hover:not(:disabled) {
     border-color: var(--primary);
@@ -600,18 +601,54 @@
     font-size: 11px; color: var(--primary);
   }
 
-  .url-input {
-    padding: 7px 9px;
+  .url-upload-row {
+    display: flex;
+    gap: 0;
     border: 1.5px solid var(--border);
     border-radius: 7px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .url-upload-row:focus-within { border-color: var(--primary); }
+  .url-input {
+    flex: 1;
+    padding: 7px 9px;
+    border: none;
     font-size: 11px;
     background: var(--bg);
     color: var(--text-muted);
-    transition: border-color 0.15s;
-    width: 100%;
-    box-sizing: border-box;
+    min-width: 0;
   }
-  .url-input:focus { outline: none; border-color: var(--primary); }
+  .url-input:focus { outline: none; }
+  .btn-camera {
+    flex-shrink: 0;
+    width: 34px;
+    background: var(--surface-2);
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-camera:hover:not(:disabled) { background: var(--surface); color: var(--primary); }
+  .btn-camera:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .panel-rating {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 2px;
+  }
+  .panel-rating-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
 
   /* ── Right content column ───────────────────────────────── */
   .modal-content {
