@@ -285,26 +285,9 @@
                 <input id="producer" type="text" bind:value={form.producer} placeholder={$t('modal_field_producer')} />
               </div>
 
-              <!-- Rating -->
-              <div class="field span-2">
-                <label id="rating-label">{$t('modal_field_rating')}</label>
-                <div class="star-rating" role="group" aria-labelledby="rating-label">
-                  {#each [1,2,3,4,5] as n}
-                    <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
-                  {/each}
-                  {#if form.rating}
-                    <span class="rating-label">{form.rating}/5</span>
-                  {/if}
-                </div>
-              </div>
-
               <div class="field-divider span-2"></div>
 
-              <div class="field">
-                <label for="grape">{$t('modal_field_grape')}</label>
-                <input id="grape" type="text" bind:value={form.grape} placeholder={$t('modal_field_grape')} />
-              </div>
-
+              <!-- Herkunft -->
               <div class="field">
                 <label for="region">{$t('modal_field_region')}</label>
                 <input id="region" type="text" bind:value={form.region} placeholder={$t('modal_field_region')} />
@@ -315,11 +298,18 @@
                 <input id="country" type="text" bind:value={form.country} placeholder={$t('modal_field_country')} />
               </div>
 
+              <!-- Weinspezifische Fakten -->
+              <div class="field">
+                <label for="grape">{$t('modal_field_grape')}</label>
+                <input id="grape" type="text" bind:value={form.grape} placeholder={$t('modal_field_grape')} />
+              </div>
+
               <div class="field">
                 <label for="alcohol">{$t('modal_field_alcohol')}</label>
                 <input id="alcohol" type="number" bind:value={form.alcohol} placeholder="13.5" step="0.1" min="0" max="25" />
               </div>
 
+              <!-- Sensorik -->
               <div class="field span-2">
                 <label>{$t('modal_field_body')}</label>
                 <div class="segment-ctrl">
@@ -335,6 +325,19 @@
                   <button type="button" class:seg-active={form.acidity === 'Low'}    on:click={() => form.acidity = form.acidity === 'Low'    ? '' : 'Low'}>{$t('acidity_low')}</button>
                   <button type="button" class:seg-active={form.acidity === 'Medium'} on:click={() => form.acidity = form.acidity === 'Medium' ? '' : 'Medium'}>{$t('acidity_medium')}</button>
                   <button type="button" class:seg-active={form.acidity === 'High'}   on:click={() => form.acidity = form.acidity === 'High'   ? '' : 'High'}>{$t('acidity_high')}</button>
+                </div>
+              </div>
+
+              <!-- Bewertung nach den Details -->
+              <div class="field span-2">
+                <label id="rating-label">{$t('modal_field_rating')}</label>
+                <div class="star-rating" role="group" aria-labelledby="rating-label">
+                  {#each [1,2,3,4,5] as n}
+                    <button type="button" class="star" class:filled={form.rating >= n} on:click={() => setRating(n)}>★</button>
+                  {/each}
+                  {#if form.rating}
+                    <span class="rating-label">{form.rating}/5</span>
+                  {/if}
                 </div>
               </div>
 
