@@ -135,9 +135,7 @@
     }
   }
 
-  async function handleFileUpload(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function uploadFile(file) {
     uploading = true;
     error = '';
     try {
@@ -146,7 +144,26 @@
       error = 'modal_error_upload';
     } finally {
       uploading = false;
-      event.target.value = '';
+    }
+  }
+
+  async function handleFileUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+    await uploadFile(file);
+  }
+
+  async function handlePaste(event) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) await uploadFile(file);
+        break;
+      }
     }
   }
 
@@ -166,7 +183,7 @@
 
 <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 <div class="backdrop" on:click={handleBackdrop}>
-  <div class="modal" role="dialog" aria-modal="true">
+  <div class="modal" role="dialog" aria-modal="true" on:paste={handlePaste}>
     <header class="modal-header">
       <h2>{wine ? $t('modal_edit_title') : $t('modal_add_title')}</h2>
       <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('modal_cancel')}>
@@ -395,6 +412,13 @@
                   </a>
                 {/if}
               </div>
+              <p class="paste-hint">
+                {#if uploading}
+                  <span class="paste-hint-uploading"><div class="spinner-sm"></div> Wird hochgeladen…</span>
+                {:else}
+                  <kbd>Strg</kbd>+<kbd>V</kbd> um ein Bild einzufügen
+                {/if}
+              </p>
               <input type="text" id="image_url" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
 
               {#if imageSearchOpen}
@@ -938,6 +962,29 @@
   .img-thumb.loading { opacity: 0.6; }
   .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+  .paste-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin: 0;
+  }
+  .paste-hint kbd {
+    font-family: inherit;
+    font-size: 11px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+  .paste-hint-uploading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+  }
   .url-input {
     padding: 8px 10px;
     border: 1.5px solid var(--border);
