@@ -129,6 +129,20 @@
     }
   }
 
+  async function handlePasteClick() {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          await uploadFile(new File([blob], 'paste', { type: imageType }));
+          break;
+        }
+      }
+    } catch { /* no image in clipboard or permission denied */ }
+  }
+
   function handleBackdrop(e) {
     if (e.target === e.currentTarget) dispatch('close');
   }
@@ -360,13 +374,17 @@
                   Google Bilder
                 </a>
               {/if}
-              <p class="paste-hint">
-                {#if uploading}
-                  <span class="paste-hint-uploading"><div class="spinner-sm"></div> Wird hochgeladen…</span>
-                {:else}
-                  <kbd>Strg</kbd>+<kbd>V</kbd> um ein Bild einzufügen
-                {/if}
-              </p>
+              {#if uploading}
+                <span class="paste-hint paste-hint-uploading"><span class="spinner-sm"></span> Wird hochgeladen…</span>
+              {:else}
+                <button type="button" class="btn-paste" on:click={handlePasteClick} disabled={uploading}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                  </svg>
+                  Bild aus Zwischenablage einfügen
+                </button>
+              {/if}
               <input type="text" id="image_url" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
             </div>
           </div>
@@ -779,6 +797,28 @@
   }
   .btn-google-img:hover { border-color: var(--primary); color: var(--primary); }
 
+  .btn-paste {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1.5px dashed var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    width: 100%;
+    justify-content: center;
+  }
+  .btn-paste:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(123,29,63,0.04);
+  }
+  .btn-paste:disabled { opacity: 0.5; cursor: not-allowed; }
   .paste-hint {
     font-size: 12px;
     color: var(--text-muted);
@@ -786,15 +826,6 @@
     align-items: center;
     gap: 3px;
     margin: 0;
-  }
-  .paste-hint kbd {
-    font-family: inherit;
-    font-size: 11px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--surface-2);
-    color: var(--text-muted);
   }
   .paste-hint-uploading {
     display: flex;
