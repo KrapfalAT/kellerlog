@@ -29,8 +29,7 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-GOOGLE_CSE_KEY = os.getenv("GOOGLE_CSE_KEY", "")
-GOOGLE_CSE_ID  = os.getenv("GOOGLE_CSE_ID", "")
+BRAVE_SEARCH_KEY = os.getenv("BRAVE_SEARCH_KEY", "")
 
 # ── SSE broadcast ────────────────────────────────────────────────────────────
 _sse_subscribers: list[asyncio.Queue] = []
@@ -1132,36 +1131,28 @@ async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
 
 @app.get("/image-search")
 async def image_search(q: str = Query(..., min_length=1), _=Depends(require_login)):
-    if not GOOGLE_CSE_KEY or not GOOGLE_CSE_ID:
-        raise HTTPException(status_code=503, detail="Google Image Search nicht konfiguriert")
-    params = {
-        "key": GOOGLE_CSE_KEY,
-        "cx": GOOGLE_CSE_ID,
-        "q": q,
-        "searchType": "image",
-        "num": 10,
-        "safe": "active",
-        "imgType": "photo",
-    }
+    if not BRAVE_SEARCH_KEY:
+        raise HTTPException(status_code=503, detail="BRAVE_SEARCH_KEY nicht konfiguriert")
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get("https://www.googleapis.com/customsearch/v1", params=params)
+            resp = await client.get(
+                "https://api.search.brave.com/res/v1/images/search",
+                params={"q": q, "count": 10, "safesearch": "moderate"},
+                headers={"Accept": "application/json", "X-Subscription-Token": BRAVE_SEARCH_KEY},
+            )
+        if resp.status_code == 401:
+            raise HTTPException(status_code=503, detail="Brave API Key ungültig")
         if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail="Google API Fehler")
-        items = resp.json().get("items") or []
+            raise HTTPException(status_code=502, detail="Brave API Fehler")
         return [
-            {
-                "url": item.get("link", ""),
-                "thumbnail": item.get("image", {}).get("thumbnailLink", item.get("link", "")),
-                "title": item.get("title", ""),
-            }
-            for item in items
-            if item.get("link")
+            {"url": r["properties"]["url"], "thumbnail": r["thumbnail"]["src"], "title": r.get("title", "")}
+            for r in resp.json().get("results", [])
+            if r.get("properties", {}).get("url") and r.get("thumbnail", {}).get("src")
         ]
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=502, detail="Google API nicht erreichbar")
+        raise HTTPException(status_code=502, detail="Bildersuche nicht verfügbar")
 
 
 @app.post("/upload-from-url")

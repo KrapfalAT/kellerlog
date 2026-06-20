@@ -129,8 +129,8 @@ export async function deleteWine(id) {
 
 export async function searchImages(q) {
   const r = await fetch(`${BASE}/image-search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
-  if (r.status === 503) return [];
-  if (!r.ok) throw new Error('Bildersuche fehlgeschlagen');
+  if (r.status === 503) throw new Error('503');
+  if (!r.ok) return [];
   return r.json();
 }
 

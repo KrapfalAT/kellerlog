@@ -51,6 +51,13 @@
   let imageSearching = false;
   let imageSearchOpen = false;
   let imagePickLoading = null;
+  let imageSearchUnavailable = false;
+
+  $: googleImagesUrl = (() => {
+    const parts = [form.name, form.producer, form.vintage].filter(Boolean);
+    if (!parts.length) return null;
+    return `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(parts.join(' ') + ' wine bottle')}`;
+  })();
 
   async function handleImageSearch() {
     const parts = [form.name, form.producer, form.vintage, form.barcode].filter(Boolean);
@@ -58,10 +65,12 @@
     const q = parts.join(' ') + ' wine bottle';
     imageSearching = true;
     imageSearchOpen = true;
+    imageSearchUnavailable = false;
     imageSearchResults = [];
     try {
       imageSearchResults = await searchImages(q);
-    } catch {
+    } catch (e) {
+      if (e.message?.includes('503')) imageSearchUnavailable = true;
       imageSearchResults = [];
     } finally {
       imageSearching = false;
@@ -363,28 +372,49 @@
                   {$t('modal_photo_upload')}
                 {/if}
               </button>
-              <button type="button" class="btn-search-img" on:click={handleImageSearch}
-                disabled={imageSearching || (!form.name && !form.producer && !form.barcode)}>
-                {#if imageSearching}
-                  <div class="spinner-sm"></div>
-                  Suche…
-                {:else}
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                  Bilder suchen
+              <div class="img-action-row">
+                <button type="button" class="btn-search-img" on:click={handleImageSearch}
+                  disabled={imageSearching || (!form.name && !form.producer && !form.barcode)}>
+                  {#if imageSearching}
+                    <div class="spinner-sm"></div>
+                    Suche…
+                  {:else}
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    Bilder suchen
+                  {/if}
+                </button>
+                {#if googleImagesUrl}
+                  <a href={googleImagesUrl} target="_blank" rel="noopener noreferrer" class="btn-google-img">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Google Bilder
+                  </a>
                 {/if}
-              </button>
+              </div>
               <input type="text" id="image_url" bind:value={form.image_url} placeholder={$t('modal_image_url_placeholder')} class="url-input" />
 
               {#if imageSearchOpen}
                 <div class="img-search-panel">
                   <div class="img-search-header">
-                    <span>Google Bildersuche</span>
+                    <span>Bildersuche</span>
                     <button type="button" class="close-search" on:click={() => imageSearchOpen = false}>×</button>
                   </div>
                   {#if imageSearching}
                     <div class="img-search-loading"><div class="spinner-sm"></div> Suche läuft…</div>
+                  {:else if imageSearchUnavailable}
+                    <div class="img-search-unavail">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                      </svg>
+                      Bildersuche nicht konfiguriert.
+                      {#if googleImagesUrl}
+                        <a href={googleImagesUrl} target="_blank" rel="noopener noreferrer">Google Bilder öffnen →</a>
+                      {/if}
+                    </div>
                   {:else if imageSearchResults.length === 0}
                     <div class="img-search-empty">Keine Bilder gefunden</div>
                   {:else}
@@ -800,6 +830,39 @@
     background: rgba(123, 29, 63, 0.04);
   }
   .btn-upload:disabled { opacity: 0.6; cursor: not-allowed; }
+  .img-action-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-google-img {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-google-img:hover { border-color: var(--primary); color: var(--primary); }
+  .img-search-unavail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .img-search-unavail a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .img-search-unavail a:hover { text-decoration: underline; }
   .btn-search-img {
     display: flex;
     align-items: center;
