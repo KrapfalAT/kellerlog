@@ -496,14 +496,15 @@
   /* ── Body & layout ─────────────────────────────────────── */
   .modal-body {
     flex: 1;
+    min-height: 0;
     overflow: hidden;
     display: flex;
   }
 
   .modal-layout {
     display: flex;
-    width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -600,11 +601,10 @@
   /* ── Right content column ───────────────────────────────── */
   .modal-content {
     flex: 1;
-    display: flex;
-    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
     overflow-y: auto;
     padding: 18px 22px;
-    min-width: 0;
   }
 
   /* ── Barcode search ─────────────────────────────────────── */
