@@ -46,6 +46,7 @@
   let showScanner = false;
   let uploading = false;
   let fileInput;
+  let showLightbox = false;
 
   $: googleImagesUrl = (() => {
     const parts = [form.name, form.producer, form.vintage].filter(Boolean);
@@ -57,7 +58,7 @@
     { value: 'red',       emoji: '🍷', label: $t('type_red') },
     { value: 'white',     emoji: '🥂', label: $t('type_white') },
     { value: 'rosé',      emoji: '🌹', label: $t('type_rose') },
-    { value: 'sparkling', emoji: '✨', label: $t('type_sparkling_long') },
+    { value: 'sparkling', emoji: '✨', label: $t('type_sparkling') },
     { value: 'dessert',   emoji: '🍯', label: $t('type_dessert') },
     { value: 'other',     emoji: '⚪', label: $t('type_other') },
   ];
@@ -175,10 +176,11 @@
 
         <!-- ─── Left: Image Panel ─────────────────────────────── -->
         <aside class="image-panel">
-          <div class="img-container">
+          <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+          <div class="img-container" class:has-image={!!form.image_url} on:click={() => { if (form.image_url) showLightbox = true; }}>
             {#if form.image_url}
               <img src={form.image_url} alt={form.name} class="wine-img" />
-              <button type="button" class="img-remove" on:click={() => form.image_url = ''} title={$t('modal_remove_image')}>×</button>
+              <button type="button" class="img-remove" on:click|stopPropagation={() => form.image_url = ''} title={$t('modal_remove_image')}>×</button>
             {:else if uploading}
               <div class="img-placeholder">
                 <span class="spinner-lg"></span>
@@ -448,6 +450,13 @@
   </div>
 </div>
 
+{#if showLightbox}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <div class="lightbox" on:click={() => showLightbox = false}>
+    <img src={form.image_url} alt={form.name} class="lightbox-img" />
+  </div>
+{/if}
+
 <style>
   .backdrop {
     position: fixed;
@@ -532,6 +541,9 @@
     border: 1.5px solid var(--border);
     position: relative;
     flex-shrink: 0;
+  }
+  .img-container.has-image {
+    cursor: zoom-in;
   }
   .wine-img {
     width: 100%; height: 100%;
@@ -702,21 +714,26 @@
   /* ── Type pills ─────────────────────────────────────────── */
   .type-pills {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
+  .type-pills::-webkit-scrollbar { display: none; }
   .type-pill {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 13px;
+    gap: 4px;
+    padding: 5px 10px;
     border: 1.5px solid var(--border);
     border-radius: 20px;
     background: var(--bg);
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
     transition: border-color 0.15s, background 0.15s, color 0.15s;
   }
   .type-pill.active {
@@ -912,5 +929,29 @@
       border-radius: 20px 20px 0 0;
       max-height: 95vh;
     }
+  }
+
+  /* ── Lightbox ────────────────────────────────────────────── */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   }
 </style>
