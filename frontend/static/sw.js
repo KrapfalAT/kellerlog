@@ -1,4 +1,4 @@
-const CACHE = 'kellerlog-v5';
+const CACHE = 'kellerlog-v6';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -22,7 +22,22 @@ self.addEventListener('fetch', e => {
   // Always use network for API calls
   if (url.pathname.startsWith('/api/')) return;
 
-  // Cache-first for everything else (app shell, assets, images)
+  // Navigation requests (app shell HTML) — network-first so a new deploy
+  // is visible on the very next load; fall back to cache when offline.
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
+        .then(resp => {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return resp;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Cache-first for hashed assets (JS/CSS/images) — filenames change on deploy
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
