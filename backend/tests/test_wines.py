@@ -91,13 +91,13 @@ def test_wine_name_required(client, admin_headers):
 def test_grape_saved_to_grapes_table(client, admin_headers):
     grape = "Zweigelt"
     client.post("/wines", json={**WINE, "name": "ZweigelterTest", "grape": grape}, headers=admin_headers)
-    grapes = client.get("/grapes").json()
+    grapes = client.get("/grapes", headers=admin_headers).json()
     assert grape in grapes
 
 
 def test_stats(client, admin_headers):
     client.post("/wines", json={**WINE, "name": "StatTestWein"}, headers=admin_headers)
-    r = client.get("/stats")
+    r = client.get("/stats", headers=admin_headers)
     assert r.status_code == 200
     data = r.json()
     assert "total_wines" in data
@@ -143,7 +143,7 @@ def test_barcode_description_persists_after_delete(client, admin_headers):
     assert wine_id not in ids  # Default-Setting: qty=0 nicht im Dashboard
 
     # 4. In der Library ist er noch vorhanden, Description erhalten
-    lib = client.get("/library").json()
+    lib = client.get("/library", headers=admin_headers).json()
     entry = next((e for e in lib if e["id"] == wine_id), None)
     assert entry is not None
     assert entry["description"] == description
@@ -162,3 +162,44 @@ def test_barcode_description_persists_after_delete(client, admin_headers):
     assert r.status_code == 200
     ids = [w["id"] for w in client.get("/wines").json()]
     assert wine_id in ids
+
+
+def test_create_wine_rejects_invalid_type(client, admin_headers):
+    r = client.post("/wines", json={"name": "BadType", "type": "banana", "quantity": 1},
+                     headers=admin_headers)
+    assert r.status_code == 422
+
+
+def test_create_wine_rejects_invalid_body(client, admin_headers):
+    r = client.post("/wines", json={"name": "BadBody", "type": "red", "body": "Chunky", "quantity": 1},
+                     headers=admin_headers)
+    assert r.status_code == 422
+
+
+def test_get_wine_returns_visible_wine(client, admin_headers):
+    wine_id = client.post("/wines", json={"name": "DetailVisible", "type": "red", "quantity": 1},
+                           headers=admin_headers).json()["id"]
+    r = client.get(f"/wines/{wine_id}")
+    assert r.status_code == 200
+    assert r.json()["name"] == "DetailVisible"
+
+
+def test_get_wine_hides_zero_quantity_by_default(client, admin_headers):
+    """Regression: GET /wines/{id} used to ignore show_zero_quantity_in_dashboard,
+    so a hidden (out-of-stock) library entry could be read by ID even though
+    it's deliberately excluded from the /wines list."""
+    wine_id = client.post("/wines", json={"name": "DetailHidden", "type": "red", "quantity": 0},
+                           headers=admin_headers).json()["id"]
+    r = client.get(f"/wines/{wine_id}")
+    assert r.status_code == 404
+
+    # Still reachable through the library (admin browse-all view).
+    r = client.get(f"/wines/{wine_id}", headers=admin_headers)
+    assert r.status_code == 404  # get_wine applies the same rule regardless of auth
+    lib_names = [w["name"] for w in client.get("/library", headers=admin_headers).json()]
+    assert "DetailHidden" in lib_names
+
+
+def test_get_nonexistent_wine_404(client):
+    r = client.get("/wines/999999")
+    assert r.status_code == 404

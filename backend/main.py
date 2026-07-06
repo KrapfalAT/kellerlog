@@ -1,14 +1,17 @@
 import asyncio
 import csv
 import io
+import ipaddress
 import json
 import os
 import secrets
+import socket
 import uuid
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Literal
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Depends, File, Header, Query, Request, UploadFile
 import httpx
@@ -17,9 +20,11 @@ from fastapi.responses import Response, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import bcrypt as _bcrypt
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from PIL import Image
+import pillow_heif
+pillow_heif.register_heif_opener()
+from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text, func, or_
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
@@ -109,6 +114,38 @@ def _valid_image_header(header: bytes) -> bool:
             return True
     # HEIC/HEIF: ISO Base Media File Format — ftyp box at offset 4
     return len(header) >= 8 and header[4:8] == b'ftyp'
+
+
+def _is_heic(content_type: str, header: bytes) -> bool:
+    if content_type in ("image/heic", "image/heif"):
+        return True
+    return len(header) >= 8 and header[4:8] == b'ftyp'
+
+
+def _is_public_host(hostname: str) -> bool:
+    """Reject hostnames that resolve to private/loopback/link-local addresses
+    to block SSRF via /upload-from-url (e.g. cloud metadata, internal services)."""
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            return False
+    return True
+
+
+def _convert_heic_to_jpeg(data: bytes) -> bytes:
+    """iOS cameras commonly produce HEIC, which most browsers can't render
+    in <img>. Decode and re-encode as JPEG so the stored file matches its
+    .jpg extension and Content-Type instead of silently mislabeling it."""
+    img = Image.open(io.BytesIO(data))
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
 
 
 # ── ORM Models ────────────────────────────────────────────────────────────────
@@ -462,10 +499,36 @@ def _save_grape(db: Session, grape_str: str) -> None:
 IMAGES_DIR = Path(os.getenv("IMAGES_DIR", "/app/data/images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-limiter = Limiter(key_func=get_remote_address)
+
+def _client_ip(request: Request) -> str:
+    """Real client IP for rate limiting.
+
+    The backend is never reached directly — only via the bundled nginx
+    container, which is the sole TCP peer FastAPI ever sees. Without this,
+    slowapi's default get_remote_address() returns nginx's container IP for
+    every request, so the login rate limit ends up shared across all users
+    instead of applied per client. nginx sets X-Forwarded-For/X-Real-IP from
+    the real connecting IP (or forwards an upstream proxy's chain via
+    $proxy_add_x_forwarded_for), so the leftmost entry is trustworthy here.
+    """
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip", "")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
+limiter = Limiter(key_func=_client_ip)
 app = FastAPI(title="KellerLog API", docs_url=None, redoc_url=None, openapi_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.on_event("startup")
 async def _capture_loop():
@@ -502,6 +565,11 @@ def require_login_or_kiosk(authorization: str = Header(default=""), db: Session 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
+WineType = Literal["red", "white", "rosé", "sparkling", "dessert", "other"]
+WineBody = Literal["", "Light-bodied", "Medium-bodied", "Full-bodied"]
+WineAcidity = Literal["", "Low", "Medium", "High"]
+
+
 class WineCreate(BaseModel):
     name: str
     producer: str = ""
@@ -509,7 +577,7 @@ class WineCreate(BaseModel):
     grape: str = ""
     region: str = ""
     country: str = ""
-    type: str = "red"
+    type: WineType = "red"
     alcohol: Optional[float] = None
     rating: Optional[int] = None
     quantity: int = 1
@@ -517,8 +585,8 @@ class WineCreate(BaseModel):
     price: Optional[float] = None
     barcode: str = ""
     image_url: str = ""
-    body: str = ""
-    acidity: str = ""
+    body: WineBody = ""
+    acidity: WineAcidity = ""
     pairings: str = ""
     description: str = ""
     wineapi_id: str = ""
@@ -535,7 +603,7 @@ class WineUpdate(BaseModel):
     grape: Optional[str] = None
     region: Optional[str] = None
     country: Optional[str] = None
-    type: Optional[str] = None
+    type: Optional[WineType] = None
     alcohol: Optional[float] = None
     rating: Optional[int] = None
     quantity: Optional[int] = None
@@ -543,8 +611,8 @@ class WineUpdate(BaseModel):
     price: Optional[float] = None
     barcode: Optional[str] = None
     image_url: Optional[str] = None
-    body: Optional[str] = None
-    acidity: Optional[str] = None
+    body: Optional[WineBody] = None
+    acidity: Optional[WineAcidity] = None
     pairings: Optional[str] = None
     description: Optional[str] = None
     wineapi_id: Optional[str] = None
@@ -588,7 +656,19 @@ class WineResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LibraryLookupResponse(WineResponse):
+    source: str = "local"
+
+
 # ── Auth schemas ─────────────────────────────────────────────────────────────
+
+def _check_password_length(v: str) -> str:
+    # bcrypt silently truncates at 72 bytes — reject up front instead of
+    # letting someone believe a longer password is used in full.
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError("Passwort darf maximal 72 Bytes lang sein")
+    return v
+
 
 class LoginRequest(BaseModel):
     username: str
@@ -599,10 +679,20 @@ class UserCreate(BaseModel):
     password: str
     role: str = "viewer"
 
+    @field_validator("password")
+    @classmethod
+    def _validate_password(cls, v):
+        return _check_password_length(v)
+
 class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
     language: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def _validate_password(cls, v):
+        return _check_password_length(v) if v else v
 
 class UserResponse(BaseModel):
     id: int
@@ -647,14 +737,14 @@ class SettingsResponse(BaseModel):
 
 
 class BatchUpdateData(BaseModel):
-    type: Optional[str] = None
+    type: Optional[WineType] = None
     location: Optional[str] = None
     region: Optional[str] = None
     country: Optional[str] = None
     producer: Optional[str] = None
     rating: Optional[int] = None
-    body: Optional[str] = None
-    acidity: Optional[str] = None
+    body: Optional[WineBody] = None
+    acidity: Optional[WineAcidity] = None
 
 
 class WineBatchUpdate(BaseModel):
@@ -662,9 +752,12 @@ class WineBatchUpdate(BaseModel):
     updates: BatchUpdateData
 
 
+WineTypeOrAny = Literal["", "red", "white", "rosé", "sparkling", "dessert", "other"]
+
+
 class DrinkRuleCreate(BaseModel):
     name: str
-    wine_type: str = ""     # empty = any type
+    wine_type: WineTypeOrAny = ""     # empty = any type
     grape: Optional[str] = None
     from_offset: int = 0
     to_offset: int = 5
@@ -672,7 +765,7 @@ class DrinkRuleCreate(BaseModel):
 
 class DrinkRuleUpdate(BaseModel):
     name: Optional[str] = None
-    wine_type: Optional[str] = None
+    wine_type: Optional[WineTypeOrAny] = None
     grape: Optional[str] = None
     from_offset: Optional[int] = None
     to_offset: Optional[int] = None
@@ -1009,6 +1102,10 @@ def get_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_logi
     wine = db.get(WineLibrary, wine_id)
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
+    settings = db.get(AppSettings, 1)
+    show_zero = settings and settings.show_zero_quantity_in_dashboard
+    if not show_zero and wine.quantity <= 0:
+        raise HTTPException(status_code=404, detail="Wein nicht gefunden")
     cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == wine_id).all()}
     return _wine_to_dict(wine, cvs)
 
@@ -1071,7 +1168,7 @@ def get_library(db: Session = Depends(get_db), _=Depends(require_login)):
     return [_wine_to_dict(w, cv_map.get(w.id)) for w in wines]
 
 
-@app.get("/library/search")
+@app.get("/library/search", response_model=List[LibraryLookupResponse])
 def search_library(q: str, db: Session = Depends(get_db), _=Depends(require_login)):
     if not q.strip():
         return []
@@ -1085,19 +1182,8 @@ def search_library(q: str, db: Session = Depends(get_db), _=Depends(require_logi
             WineLibrary.barcode == q,
         )
     ).order_by(WineLibrary.saved_at.desc()).limit(10).all()
-    return [
-        {
-            "source": "local", "id": e.id,
-            "name": e.name, "producer": e.producer, "vintage": e.vintage,
-            "grape": e.grape, "region": e.region, "country": e.country,
-            "type": e.type, "alcohol": e.alcohol, "rating": e.rating,
-            "notes": e.notes, "price": e.price, "barcode": e.barcode,
-            "image_url": e.image_url, "body": e.body, "acidity": e.acidity,
-            "pairings": e.pairings, "description": e.description,
-            "wineapi_id": e.wineapi_id, "quantity": e.quantity,
-        }
-        for e in rows
-    ]
+    cv_map = _load_cvs(db, [e.id for e in rows])
+    return [{"source": "local", **_wine_to_dict(e, cv_map.get(e.id))} for e in rows]
 
 
 @app.put("/library/{entry_id}", response_model=WineResponse)
@@ -1139,8 +1225,18 @@ async def upload_image(file: UploadFile = File(...), _=Depends(require_auth)):
     file.file.seek(0)
     if not _valid_image_header(header):
         raise HTTPException(status_code=400, detail="Ungültiges Bildformat")
-    ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
-               "image/gif": ".gif", "image/heic": ".jpg"}
+
+    if _is_heic(file.content_type, header):
+        raw = await file.read()
+        try:
+            data = _convert_heic_to_jpeg(raw)
+        except Exception:
+            raise HTTPException(status_code=400, detail="HEIC-Bild konnte nicht konvertiert werden")
+        filename = f"{uuid.uuid4()}.jpg"
+        (IMAGES_DIR / filename).write_bytes(data)
+        return {"url": f"/api/images/{filename}"}
+
+    ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
     ext = ext_map.get(file.content_type, ".jpg")
     filename = f"{uuid.uuid4()}{ext}"
     dest = IMAGES_DIR / filename
@@ -1180,10 +1276,22 @@ async def upload_from_url(body: dict, _=Depends(require_auth)):
     url = (body.get("url") or "").strip()
     if not url.startswith("https://"):
         raise HTTPException(status_code=400, detail="Nur HTTPS-URLs erlaubt")
+    hostname = urlparse(url).hostname
+    if not hostname or not _is_public_host(hostname):
+        raise HTTPException(status_code=400, detail="URL nicht erlaubt")
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True,
+        # follow_redirects disabled and re-validated manually — an internal
+        # redirect target must not bypass the public-host check above (SSRF).
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False,
                                      headers={"User-Agent": "KellerLog/1.5"}) as client:
             resp = await client.get(url)
+            for _hop in range(5):
+                if not resp.has_redirect_location:
+                    break
+                next_url = resp.url.join(resp.headers["location"])
+                if next_url.scheme != "https" or not next_url.host or not _is_public_host(next_url.host):
+                    raise HTTPException(status_code=400, detail="URL nicht erlaubt")
+                resp = await client.get(str(next_url))
         if resp.status_code != 200:
             raise HTTPException(status_code=502, detail="Bild konnte nicht geladen werden")
         content_type = resp.headers.get("content-type", "").split(";")[0].strip()
@@ -1192,9 +1300,16 @@ async def upload_from_url(body: dict, _=Depends(require_auth)):
         data = resp.content
         if not _valid_image_header(data[:12]):
             raise HTTPException(status_code=400, detail="Ungültiges Bildformat")
-        ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
-        ext = ext_map.get(content_type, ".jpg")
-        filename = f"{uuid.uuid4()}{ext}"
+        if _is_heic(content_type, data[:12]):
+            try:
+                data = _convert_heic_to_jpeg(data)
+            except Exception:
+                raise HTTPException(status_code=400, detail="HEIC-Bild konnte nicht konvertiert werden")
+            filename = f"{uuid.uuid4()}.jpg"
+        else:
+            ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+            ext = ext_map.get(content_type, ".jpg")
+            filename = f"{uuid.uuid4()}{ext}"
         dest = IMAGES_DIR / filename
         dest.write_bytes(data)
         return {"url": f"/api/images/{filename}"}
@@ -1204,21 +1319,13 @@ async def upload_from_url(body: dict, _=Depends(require_auth)):
         raise HTTPException(status_code=502, detail="Bild konnte nicht geladen werden")
 
 
-@app.get("/lookup/{barcode}")
+@app.get("/lookup/{barcode}", response_model=Optional[LibraryLookupResponse])
 def lookup_barcode(barcode: str, db: Session = Depends(get_db), _=Depends(require_login)):
     lib = db.query(WineLibrary).filter(WineLibrary.barcode == barcode).first()
-    if lib:
-        return {
-            "source": "local", "id": lib.id,
-            "name": lib.name, "producer": lib.producer, "vintage": lib.vintage,
-            "grape": lib.grape, "region": lib.region, "country": lib.country,
-            "type": lib.type, "alcohol": lib.alcohol, "rating": lib.rating,
-            "notes": lib.notes, "price": lib.price, "barcode": lib.barcode,
-            "image_url": lib.image_url, "body": lib.body, "acidity": lib.acidity,
-            "pairings": lib.pairings, "description": lib.description,
-            "quantity": lib.quantity,
-        }
-    return None
+    if not lib:
+        return None
+    cvs = {r.field_key: r.value for r in db.query(WineCustomValue).filter(WineCustomValue.wine_id == lib.id).all()}
+    return {"source": "local", **_wine_to_dict(lib, cvs)}
 
 
 _EXPORT_FIELDS = [
@@ -1286,11 +1393,22 @@ async def import_wines(file: UploadFile = File(...), db: Session = Depends(get_d
 
     fname = (file.filename or '').lower()
     if fname.endswith('.json'):
-        rows = json.loads(content.decode('utf-8'))
+        try:
+            rows = json.loads(content.decode('utf-8'))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise HTTPException(status_code=400, detail="Ungültiges JSON")
+        if not isinstance(rows, list):
+            raise HTTPException(status_code=400, detail="JSON muss eine Liste von Weinen sein")
     elif fname.endswith('.csv'):
-        rows = list(csv.DictReader(io.StringIO(content.decode('utf-8'))))
+        try:
+            rows = list(csv.DictReader(io.StringIO(content.decode('utf-8'))))
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="Ungültige CSV-Datei")
     else:
         raise HTTPException(status_code=400, detail="Nur .json oder .csv Dateien erlaubt")
+
+    if not all(isinstance(r, dict) for r in rows):
+        raise HTTPException(status_code=400, detail="Jeder Eintrag muss ein Objekt sein")
 
     for row in rows:
         name = (row.get('name') or '').strip()
