@@ -442,10 +442,22 @@
     </div>
 
     <footer class="modal-footer">
-      <button type="button" class="btn-secondary" on:click={() => dispatch('close')}>{$t('modal_cancel')}</button>
-      <button type="submit" form="wine-form" class="btn-primary" disabled={saving}>
-        {saving ? $t('modal_updating') : wine ? $t('modal_update') : $t('nav_add')}
-      </button>
+      {#if wine}
+        <div class="audit-info">
+          {#if wine.created_by || wine.saved_at}
+            <span>Erstellt {wine.saved_at ? new Date(wine.saved_at + 'Z').toLocaleString('de-AT', {dateStyle:'short', timeStyle:'short'}) : ''}{wine.created_by ? ` · ${wine.created_by}` : ''}</span>
+          {/if}
+          {#if wine.updated_by || wine.updated_at}
+            <span>Bearbeitet {wine.updated_at ? new Date(wine.updated_at + 'Z').toLocaleString('de-AT', {dateStyle:'short', timeStyle:'short'}) : ''}{wine.updated_by ? ` · ${wine.updated_by}` : ''}</span>
+          {/if}
+        </div>
+      {/if}
+      <div class="footer-actions">
+        <button type="button" class="btn-secondary" on:click={() => dispatch('close')}>{$t('modal_cancel')}</button>
+        <button type="submit" form="wine-form" class="btn-primary" disabled={saving}>
+          {saving ? $t('modal_updating') : wine ? $t('modal_update') : $t('nav_add')}
+        </button>
+      </div>
     </footer>
   </div>
 </div>
@@ -920,11 +932,16 @@
 
   /* ── Footer ─────────────────────────────────────────────── */
   .modal-footer {
-    padding: 14px 22px;
+    padding: 12px 22px;
     border-top: 1px solid var(--border);
-    display: flex; justify-content: flex-end; gap: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     flex-shrink: 0;
   }
+  .audit-info {
+    display: flex; flex-direction: column; gap: 1px;
+    font-size: 11px; color: var(--text-muted);
+  }
+  .footer-actions { display: flex; gap: 10px; }
   .btn-primary {
     background: var(--primary); color: white;
     border: none; padding: 10px 22px;

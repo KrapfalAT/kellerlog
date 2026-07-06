@@ -138,6 +138,8 @@ class WineLibrary(Base):
     wineapi_id = Column(String, default="")
     saved_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String, default="")
+    updated_by = Column(String, default="")
     # Stock fields (merged from former wines table)
     quantity = Column(Integer, default=0)
     by_glass = Column(Boolean, default=False)
@@ -273,6 +275,18 @@ def _migrate_users():
         conn.commit()
 
 _migrate_users()
+
+
+def _migrate_wine_audit():
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(wine_library)"))}
+        if "created_by" not in existing:
+            conn.execute(text("ALTER TABLE wine_library ADD COLUMN created_by TEXT DEFAULT ''"))
+        if "updated_by" not in existing:
+            conn.execute(text("ALTER TABLE wine_library ADD COLUMN updated_by TEXT DEFAULT ''"))
+        conn.commit()
+
+_migrate_wine_audit()
 
 
 def _migrate_to_unified():
@@ -567,6 +581,8 @@ class WineResponse(BaseModel):
     saved_at: datetime
     updated_at: datetime
     added_at: datetime  # alias for saved_at — kept for frontend compatibility
+    created_by: str = ""
+    updated_by: str = ""
     custom_values: dict = {}
 
     model_config = {"from_attributes": True}
@@ -972,9 +988,11 @@ async def sse_events(request: Request, token: str = "", db: Session = Depends(ge
 
 
 @app.post("/wines", response_model=WineResponse)
-def create_wine(wine: WineCreate, db: Session = Depends(get_db), _=Depends(require_auth)):
+def create_wine(wine: WineCreate, db: Session = Depends(get_db), payload=Depends(require_auth)):
     wine_data = wine.model_dump(exclude={'custom_values'})
-    db_wine = WineLibrary(**wine_data)
+    actor = db.get(User, int(payload["sub"]))
+    username = actor.username if actor else ""
+    db_wine = WineLibrary(**wine_data, created_by=username, updated_by=username)
     db.add(db_wine)
     db.commit()
     db.refresh(db_wine)
@@ -996,13 +1014,15 @@ def get_wine(wine_id: int, db: Session = Depends(get_db), _=Depends(require_logi
 
 
 @app.put("/wines/{wine_id}", response_model=WineResponse)
-def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get_db), _=Depends(require_auth)):
+def update_wine(wine_id: int, wine_update: WineUpdate, db: Session = Depends(get_db), payload=Depends(require_auth)):
     wine = db.get(WineLibrary, wine_id)
     if not wine:
         raise HTTPException(status_code=404, detail="Wein nicht gefunden")
     for field, value in wine_update.model_dump(exclude_unset=True, exclude={'custom_values'}).items():
         setattr(wine, field, value)
+    actor = db.get(User, int(payload["sub"]))
     wine.updated_at = datetime.utcnow()
+    wine.updated_by = actor.username if actor else ""
     db.commit()
     db.refresh(wine)
     _save_grape(db, wine.grape)
