@@ -11,6 +11,7 @@
   --text-muted: #6b5561;
   --shadow: 0 2px 12px rgba(123, 29, 63, 0.1);
   --shadow-lg: 0 8px 32px rgba(123, 29, 63, 0.18);
+  --danger: var(--danger);
 
   --red: #7B1D3F;
   --white-wine: #c4911a;
@@ -58,10 +59,28 @@ input, select, textarea {
   font-family: inherit;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s;
 }
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-secondary {
+  background: none;
+  color: var(--text-muted);
+  border: 1.5px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }

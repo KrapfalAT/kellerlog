@@ -3,6 +3,7 @@
   import { uploadImage, lookupBarcode, searchLibrary } from '$lib/api.js';
   import { t } from '$lib/stores/i18n.js';
   import BarcodeScanner from '$lib/components/BarcodeScanner.svelte';
+  import Modal from './Modal.svelte';
 
   export let wine;
   export let isNew = false;
@@ -136,7 +137,7 @@
   <BarcodeScanner on:scan={handleScan} on:close={() => showScanner = false} />
 {/if}
 
-<div class="overlay">
+<Modal variant="sheet" on:close={cancel}>
   <div class="sheet">
     <div class="handle"></div>
 
@@ -220,26 +221,26 @@
     <div class="fields">
       <div class="field-row">
         <div class="field">
-          <label>{$t('modal_field_producer')}</label>
-          <input type="text" bind:value={localProducer} placeholder={$t('modal_field_producer')} />
+          <label for="inv-producer">{$t('modal_field_producer')}</label>
+          <input id="inv-producer" type="text" bind:value={localProducer} placeholder={$t('modal_field_producer')} />
         </div>
         <div class="field">
-          <label>{$t('modal_field_vintage')}</label>
-          <input type="number" bind:value={localVintage} placeholder="2020" min="1900" max="2100" />
+          <label for="inv-vintage">{$t('modal_field_vintage')}</label>
+          <input id="inv-vintage" type="number" bind:value={localVintage} placeholder="2020" min="1900" max="2100" />
         </div>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>{$t('modal_field_type')}</label>
-          <select bind:value={localType}>
+          <label for="inv-type">{$t('modal_field_type')}</label>
+          <select id="inv-type" bind:value={localType}>
             {#each typeOptions as opt}
               <option value={opt.value}>{opt.label}</option>
             {/each}
           </select>
         </div>
         <div class="field">
-          <label>{$t('modal_field_price')}</label>
-          <input type="number" bind:value={localPrice} placeholder="0.00" step="0.01" min="0" />
+          <label for="inv-price">{$t('modal_field_price')}</label>
+          <input id="inv-price" type="number" bind:value={localPrice} placeholder="0.00" step="0.01" min="0" />
         </div>
       </div>
     </div>
@@ -271,35 +272,9 @@
       </button>
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 300;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-
-  .sheet {
-    background: var(--surface);
-    border-radius: 20px 20px 0 0;
-    width: 100%;
-    max-width: 480px;
-    box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
-    animation: slideUp 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  @keyframes slideUp {
-    from { transform: translateY(40px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-  }
-
   .handle {
     width: 36px;
     height: 4px;
@@ -474,7 +449,7 @@
   }
   .upload-err {
     font-size: 11px;
-    color: #c0392b;
+    color: var(--danger);
     font-weight: 600;
   }
   .barcode-hint {
@@ -546,7 +521,7 @@
     cursor: pointer;
     transition: background 0.12s;
   }
-  .qty-btn.minus { color: #c0392b; }
+  .qty-btn.minus { color: var(--danger); }
   .qty-btn.minus:hover { background: rgba(192, 57, 43, 0.07); }
   .qty-btn.plus  { color: var(--primary); }
   .qty-btn.plus:hover  { background: rgba(123, 29, 63, 0.07); }

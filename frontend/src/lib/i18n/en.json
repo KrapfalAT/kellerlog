@@ -76,6 +76,10 @@
   "sort_rating": "Rating",
   "sort_quantity": "Quantity",
 
+  "view_poster": "Poster",
+  "view_list": "List",
+  "view_thumb": "Thumbnails",
+
   "search_placeholder": "Search collection...",
 
   "inventory_mode_label": "Inventory Mode",

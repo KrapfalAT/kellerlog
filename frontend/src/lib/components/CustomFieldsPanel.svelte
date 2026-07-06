@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { getCustomFields, createCustomField, updateCustomField, deleteCustomField } from '$lib/api.js';
   import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -92,15 +93,14 @@
   }
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={(e) => e.target === e.currentTarget && dispatch('close')}>
+<Modal variant="drawer" labelledby="custom-fields-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('custom_fields_title')}</h2>
+        <h2 id="custom-fields-title">{$t('custom_fields_title')}</h2>
         <p class="subtitle">{$t('custom_fields_subtitle')}</p>
       </div>
-      <button class="close-btn" on:click={() => dispatch('close')}>
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('custom_fields_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -142,8 +142,8 @@
                     </div>
                   </div>
                   <div class="edit-actions">
-                    <button class="btn-cancel" on:click={() => editingId = null}>{$t('custom_fields_cancel')}</button>
-                    <button class="btn-save" on:click={() => handleSaveEdit(field)} disabled={saving}>
+                    <button class="btn-secondary" on:click={() => editingId = null}>{$t('custom_fields_cancel')}</button>
+                    <button class="btn-primary" on:click={() => handleSaveEdit(field)} disabled={saving}>
                       {saving ? $t('custom_fields_saving') : $t('custom_fields_save')}
                     </button>
                   </div>
@@ -160,13 +160,13 @@
                   <code class="field-key">{field.key}</code>
                 </div>
                 <div class="row-actions">
-                  <button class="icon-btn" on:click={() => startEdit(field)} title="Bearbeiten">
+                  <button class="icon-btn" on:click={() => startEdit(field)} title="Bearbeiten" aria-label="Bearbeiten">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                   </button>
-                  <button class="icon-btn danger" on:click={() => handleDelete(field)} title="Löschen">
+                  <button class="icon-btn danger" on:click={() => handleDelete(field)} title="Löschen" aria-label="Löschen">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6"/>
                       <path d="M19 6l-1 14H6L5 6"/>
@@ -213,8 +213,8 @@
               </div>
             </div>
             <div class="create-actions">
-              <button class="btn-cancel" on:click={() => { showCreate = false; createError = ''; }}>{$t('custom_fields_cancel')}</button>
-              <button class="btn-save" on:click={handleCreate} disabled={saving}>
+              <button class="btn-secondary" on:click={() => { showCreate = false; createError = ''; }}>{$t('custom_fields_cancel')}</button>
+              <button class="btn-primary" on:click={handleCreate} disabled={saving}>
                 {saving ? $t('custom_fields_creating') : $t('custom_fields_create')}
               </button>
             </div>
@@ -230,26 +230,13 @@
       {/if}
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed; inset: 0;
-    background: rgba(26,13,17,0.6);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex; align-items: stretch; justify-content: flex-end;
-  }
   .panel {
-    background: var(--surface);
-    width: 100%; max-width: 480px;
-    display: flex; flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.2);
-    animation: slideIn 0.22s ease;
-  }
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
   .panel-header {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -301,7 +288,7 @@
     display: flex; align-items: center; justify-content: center; transition: all 0.12s;
   }
   .icon-btn:hover { border-color: var(--primary); color: var(--primary); }
-  .icon-btn.danger:hover { border-color: #c0392b; color: #c0392b; }
+  .icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 
   .edit-form, .create-form {
     background: var(--surface-2); border: 1px solid var(--border);
@@ -323,17 +310,6 @@
   .form-field input:focus, .form-field select:focus { outline: none; border-color: var(--primary); }
 
   .edit-actions, .create-actions { display: flex; gap: 8px; justify-content: flex-end; }
-  .btn-cancel {
-    padding: 7px 14px; border: 1.5px solid var(--border); border-radius: 8px;
-    background: none; font-size: 13px; font-weight: 600; color: var(--text-muted);
-  }
-  .btn-cancel:hover { border-color: var(--primary); color: var(--primary); }
-  .btn-save {
-    padding: 7px 16px; border: none; border-radius: 8px;
-    background: var(--primary); color: white; font-size: 13px; font-weight: 600;
-  }
-  .btn-save:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-save:disabled { opacity: 0.45; cursor: default; }
 
   .btn-add {
     display: flex; align-items: center; gap: 6px; padding: 9px 14px;
@@ -343,5 +319,5 @@
   }
   .btn-add:hover { border-color: var(--primary); color: var(--primary); }
 
-  .err-msg { background: #fde8e8; color: #c0392b; padding: 7px 10px; border-radius: 6px; font-size: 12px; }
+  .err-msg { background: #fde8e8; color: var(--danger); padding: 7px 10px; border-radius: 6px; font-size: 12px; }
 </style>

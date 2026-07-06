@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   export let count = 0;
 
@@ -25,21 +26,16 @@
     saving = true;
     dispatch('save', updates);
   }
-
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="batch-panel-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('batch_panel_title')}</h2>
+        <h2 id="batch-panel-title">{$t('batch_panel_title')}</h2>
         <p class="subtitle">{count} {count === 1 ? $t('count_singular') : $t('count_plural')} · {$t('batch_panel_subtitle')}</p>
       </div>
-      <button class="close-btn" on:click={() => dispatch('close')}>
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('modal_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -135,32 +131,19 @@
     </div>
 
     <div class="panel-footer">
-      <button class="btn-cancel" on:click={() => dispatch('close')}>{$t('modal_cancel')}</button>
-      <button class="btn-save" on:click={handleSave} disabled={!anyEnabled || saving}>
+      <button class="btn-secondary" on:click={() => dispatch('close')}>{$t('modal_cancel')}</button>
+      <button class="btn-primary" on:click={handleSave} disabled={!anyEnabled || saving}>
         {saving ? $t('batch_saving') : $t('batch_save')}
       </button>
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed; inset: 0;
-    background: rgba(26,13,17,0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex; align-items: stretch; justify-content: flex-end;
-  }
   .panel {
-    background: var(--surface);
-    width: 100%; max-width: 400px;
-    display: flex; flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0); opacity: 1; }
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
   .panel-header {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -227,17 +210,6 @@
     border-top: 1px solid var(--border);
     background: var(--surface-2);
   }
-  .btn-cancel {
-    flex: 1; padding: 10px; border: 1.5px solid var(--border);
-    border-radius: 10px; background: none; font-size: 14px; font-weight: 600;
-    color: var(--text-muted); transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-cancel:hover { border-color: var(--primary); color: var(--primary); }
-  .btn-save {
-    flex: 2; padding: 10px; border: none; border-radius: 10px;
-    background: var(--primary); color: white; font-size: 14px; font-weight: 600;
-    transition: background 0.15s;
-  }
-  .btn-save:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-save:disabled { opacity: 0.45; cursor: default; }
+  .panel-footer .btn-secondary { flex: 1; }
+  .panel-footer .btn-primary { flex: 2; }
 </style>

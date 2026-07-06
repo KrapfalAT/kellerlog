@@ -3,6 +3,7 @@
   import { getUsers, createUser, updateUser, deleteUser } from '$lib/api.js';
   import { auth } from '$lib/stores/auth.js';
   import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -24,8 +25,6 @@
 
   onMount(async () => {
     await load();
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
   });
 
   async function load() {
@@ -91,22 +90,17 @@
     }
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
-
   $: roleLabel = { admin: 'Admin', viewer: 'Viewer' };
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="users-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('users_title')}</h2>
+        <h2 id="users-title">{$t('users_title')}</h2>
         <p class="subtitle">{$t('users_subtitle')}</p>
       </div>
-      <button class="close-btn" on:click={() => dispatch('close')}>
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('users_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -132,20 +126,20 @@
                   </div>
                   <div class="edit-fields">
                     <div class="edit-field">
-                      <label>{$t('users_new_password')}</label>
-                      <input type="password" bind:value={editPassword} placeholder={$t('users_password_hint')} />
+                      <label for="edit-password-{user.id}">{$t('users_new_password')}</label>
+                      <input id="edit-password-{user.id}" type="password" bind:value={editPassword} placeholder={$t('users_password_hint')} />
                     </div>
                     <div class="edit-field">
-                      <label>{$t('users_role')}</label>
-                      <select bind:value={editRole}>
+                      <label for="edit-role-{user.id}">{$t('users_role')}</label>
+                      <select id="edit-role-{user.id}" bind:value={editRole}>
                         <option value="admin">Admin</option>
                         <option value="viewer">Viewer</option>
                       </select>
                     </div>
                   </div>
                   <div class="edit-actions">
-                    <button class="btn-cancel" on:click={() => editingId = null}>{$t('users_cancel')}</button>
-                    <button class="btn-save" on:click={() => saveEdit(user)} disabled={saving}>
+                    <button class="btn-secondary" on:click={() => editingId = null}>{$t('users_cancel')}</button>
+                    <button class="btn-primary" on:click={() => saveEdit(user)} disabled={saving}>
                       {saving ? $t('users_saving') : $t('users_save')}
                     </button>
                   </div>
@@ -161,14 +155,14 @@
                   <span class="role-badge role-{user.role}">{roleLabel[user.role]}</span>
                 </div>
                 <div class="row-actions">
-                  <button class="icon-btn" title="Bearbeiten" on:click={() => startEdit(user)}>
+                  <button class="icon-btn" title="Bearbeiten" aria-label="Bearbeiten" on:click={() => startEdit(user)}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                   </button>
                   {#if user.id !== $auth?.id}
-                    <button class="icon-btn danger" title="Löschen" on:click={() => handleDelete(user)}>
+                    <button class="icon-btn danger" title="Löschen" aria-label="Löschen" on:click={() => handleDelete(user)}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6l-1 14H6L5 6"/>
@@ -188,24 +182,24 @@
             {#if createError}<div class="err-inline">{createError}</div>{/if}
             <div class="create-fields">
               <div class="edit-field">
-                <label>{$t('users_username')}</label>
-                <input type="text" bind:value={newUsername} placeholder="username" />
+                <label for="new-username">{$t('users_username')}</label>
+                <input id="new-username" type="text" bind:value={newUsername} placeholder="username" />
               </div>
               <div class="edit-field">
-                <label>{$t('users_password')}</label>
-                <input type="password" bind:value={newPassword} placeholder="••••••••" />
+                <label for="new-user-password">{$t('users_password')}</label>
+                <input id="new-user-password" type="password" bind:value={newPassword} placeholder="••••••••" />
               </div>
               <div class="edit-field">
-                <label>{$t('users_role')}</label>
-                <select bind:value={newRole}>
+                <label for="new-user-role">{$t('users_role')}</label>
+                <select id="new-user-role" bind:value={newRole}>
                   <option value="viewer">Viewer</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
             </div>
             <div class="edit-actions">
-              <button class="btn-cancel" on:click={() => { showCreate = false; createError = ''; }}>{$t('users_cancel')}</button>
-              <button class="btn-save" on:click={handleCreate} disabled={creating || !newUsername || !newPassword}>
+              <button class="btn-secondary" on:click={() => { showCreate = false; createError = ''; }}>{$t('users_cancel')}</button>
+              <button class="btn-primary" on:click={handleCreate} disabled={creating || !newUsername || !newPassword}>
                 {creating ? $t('users_creating') : $t('users_create')}
               </button>
             </div>
@@ -221,33 +215,13 @@
       {/if}
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26,13,17,0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-  }
-
   .panel {
-    background: var(--surface);
-    width: 100%;
-    max-width: 480px;
     display: flex;
     flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0); opacity: 1; }
+    height: 100%;
   }
 
   .panel-header {
@@ -289,7 +263,7 @@
     border: 1px solid rgba(192,57,43,0.3);
     border-radius: 10px;
     font-size: 13px;
-    color: #c0392b;
+    color: var(--danger);
   }
 
   .center { display: flex; justify-content: center; padding: 60px; }
@@ -349,7 +323,7 @@
     transition: color 0.15s, background 0.15s;
   }
   .icon-btn:hover { color: var(--primary); background: rgba(123,29,63,0.08); }
-  .icon-btn.danger:hover { color: #c0392b; background: rgba(192,57,43,0.08); }
+  .icon-btn.danger:hover { color: var(--danger); background: rgba(192,57,43,0.08); }
 
   .edit-form, .create-form {
     display: flex;
@@ -396,28 +370,11 @@
   .edit-actions {
     display: flex; gap: 8px;
   }
-
-  .btn-cancel {
-    flex: 1; padding: 8px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: 8px; background: none;
-    font-size: 13px; font-weight: 600; color: var(--text-muted);
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-cancel:hover { border-color: var(--primary); color: var(--primary); }
-
-  .btn-save {
-    flex: 2; padding: 8px 12px;
-    border: none; border-radius: 8px;
-    background: var(--primary); color: white;
-    font-size: 13px; font-weight: 600;
-    transition: background 0.15s;
-  }
-  .btn-save:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-save:disabled { opacity: 0.55; cursor: default; }
+  .edit-actions .btn-secondary { flex: 1; }
+  .edit-actions .btn-primary { flex: 2; }
 
   .err-inline {
-    font-size: 12px; color: #c0392b;
+    font-size: 12px; color: var(--danger);
     background: rgba(192,57,43,0.08);
     border-radius: 6px; padding: 6px 10px;
   }

@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { exportWines, importWines } from '$lib/api.js';
   import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -31,17 +32,14 @@
     }
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
+
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="export-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('export_title')}</h2>
+        <h2 id="export-title">{$t('export_title')}</h2>
         <p class="subtitle">{$t('export_subtitle')}</p>
       </div>
       <button class="close-btn" on:click={() => dispatch('close')} aria-label="Schließen">
@@ -121,33 +119,13 @@
       </section>
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-  }
-
   .panel {
-    background: var(--surface);
-    width: 100%;
-    max-width: 420px;
     display: flex;
     flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+    height: 100%;
   }
 
   .panel-header {
@@ -273,7 +251,7 @@
   }
   .result.error {
     background: rgba(192, 57, 43, 0.08);
-    color: #c0392b;
+    color: var(--danger);
     border: 1px solid rgba(192, 57, 43, 0.2);
   }
 

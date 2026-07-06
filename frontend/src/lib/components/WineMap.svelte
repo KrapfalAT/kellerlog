@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import Modal from './Modal.svelte';
   import 'leaflet/dist/leaflet.css';
   import { t } from '$lib/stores/i18n.js';
 
@@ -320,11 +321,10 @@
   }).length;
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click|self={() => dispatch('close')}>
+<Modal variant="center" maxWidth="900px" labelledby="map-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <header class="panel-header">
-      <div class="panel-title">
+      <div class="panel-title" id="map-title">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
           <line x1="8" y1="2" x2="8" y2="18"/>
@@ -357,37 +357,14 @@
       <p class="empty-map">{$t('map_empty')}</p>
     {/if}
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.65);
-    backdrop-filter: blur(4px);
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-
   .panel {
-    background: var(--surface);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 900px;
-    max-height: 92vh;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-    animation: slideIn 0.2s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateY(16px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    width: 100%;
+    height: 100%;
   }
 
   .panel-header {

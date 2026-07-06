@@ -15,6 +15,7 @@ export const lang = writable(initialLang);
 
 lang.subscribe(v => {
   if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, v);
+  if (typeof document !== 'undefined') document.documentElement.lang = v;
 });
 
 export const t = derived(lang, $l => key => translations[$l]?.[key] ?? translations.de[key] ?? key);

@@ -1,6 +1,7 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { t, lang } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   export let wine;
   export let editable = false;
@@ -22,14 +23,7 @@
 
   let showLightbox = false;
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
-
-  onMount(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  });
+  function openLightbox() { showLightbox = true; }
 </script>
 
 {#if showLightbox}
@@ -39,15 +33,15 @@
   </div>
 {/if}
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
-  <div class="panel" role="dialog" aria-modal="true">
+<Modal variant="center" maxWidth="780px" labelledby="wine-detail-title" on:close={() => dispatch('close')}>
+  <div class="panel">
 
     <!-- Image -->
     <div class="image-side">
       {#if wine.image_url}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <img src={wine.image_url} alt={wine.name} class="wine-img zoomable" on:click={() => showLightbox = true} />
+        <button type="button" class="wine-img-btn" on:click={openLightbox}>
+          <img src={wine.image_url} alt={wine.name} class="wine-img zoomable" />
+        </button>
       {:else}
         <div class="img-placeholder">
           <svg viewBox="0 0 64 100" fill="none">
@@ -67,7 +61,7 @@
     <div class="detail-side">
       <div class="detail-header-btns">
         {#if editable}
-          <button class="edit-btn" on:click={() => dispatch('edit', wine)} title="Bearbeiten">
+          <button class="edit-btn" on:click={() => dispatch('edit', wine)} title="Bearbeiten" aria-label="Bearbeiten">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -82,7 +76,7 @@
       </div>
 
       <div class="detail-scroll">
-        <h2 class="wine-name">{wine.name}</h2>
+        <h2 class="wine-name" id="wine-detail-title">{wine.name}</h2>
 
         {#if wine.producer}
           <p class="producer">{wine.producer}</p>
@@ -179,36 +173,13 @@
     </div>
 
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.7);
-    backdrop-filter: blur(6px);
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-
   .panel {
-    background: var(--surface);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 780px;
-    max-height: 92vh;
     display: flex;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.35);
-    overflow: hidden;
-    animation: popIn 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
-  }
-
-  @keyframes popIn {
-    from { transform: scale(0.92); opacity: 0; }
-    to   { transform: scale(1);    opacity: 1; }
+    width: 100%;
+    height: 100%;
   }
 
   /* ── Image side ── */
@@ -222,6 +193,20 @@
     justify-content: center;
   }
 
+  .wine-img-btn {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wine-img-btn:focus-visible {
+    outline: 2.5px solid var(--primary);
+    outline-offset: -2px;
+  }
   .wine-img {
     width: 100%;
     height: 100%;

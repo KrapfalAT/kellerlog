@@ -3,6 +3,7 @@
   import { t } from '$lib/stores/i18n.js';
   import { branding, DEFAULTS } from '$lib/stores/branding.js';
   import { uploadImage } from '$lib/api.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -65,17 +66,14 @@
     branding.reset();
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
+
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="branding-panel-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('branding_panel_title')}</h2>
+        <h2 id="branding-panel-title">{$t('branding_panel_title')}</h2>
         <p class="subtitle-hd">{$t('branding_panel_subtitle')}</p>
       </div>
       <button class="close-btn" on:click={() => dispatch('close')} aria-label="Schließen">
@@ -180,12 +178,12 @@
           {$t('branding_texts_main')}
         </div>
         <div class="field">
-          <label>{$t('branding_label_title')}</label>
-          <input type="text" bind:value={title} on:input={onTitle} placeholder="KellerLog" maxlength="40" />
+          <label for="branding-title">{$t('branding_label_title')}</label>
+          <input id="branding-title" type="text" bind:value={title} on:input={onTitle} placeholder="KellerLog" maxlength="40" />
         </div>
         <div class="field">
-          <label>{$t('branding_label_subtitle')}</label>
-          <input type="text" bind:value={subtitle} on:input={onSubtitle} placeholder="Meine Weinsammlung" maxlength="60" />
+          <label for="branding-subtitle">{$t('branding_label_subtitle')}</label>
+          <input id="branding-subtitle" type="text" bind:value={subtitle} on:input={onSubtitle} placeholder="Meine Weinsammlung" maxlength="60" />
         </div>
       </section>
 
@@ -202,32 +200,13 @@
 
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-  }
-
   .panel {
-    background: var(--surface);
-    width: 100%;
-    max-width: 400px;
     display: flex;
     flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+    height: 100%;
   }
 
   .panel-header {
@@ -455,7 +434,7 @@
     font-weight: 600;
     transition: border-color 0.15s, color 0.15s;
   }
-  .reset-btn:hover { border-color: #c0392b; color: #c0392b; }
+  .reset-btn:hover { border-color: var(--danger); color: var(--danger); }
 
   .spinner {
     width: 14px; height: 14px;

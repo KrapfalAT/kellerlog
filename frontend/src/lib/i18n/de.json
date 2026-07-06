@@ -76,6 +76,10 @@
   "sort_rating": "Bewertung",
   "sort_quantity": "Anzahl",
 
+  "view_poster": "Poster",
+  "view_list": "Liste",
+  "view_thumb": "Miniaturen",
+
   "search_placeholder": "In Sammlung suchen...",
 
   "inventory_mode_label": "Inventarisierungsmodus",

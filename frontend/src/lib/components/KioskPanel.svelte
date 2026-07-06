@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { getSettings, updateSettings } from '$lib/api.js';
   import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -18,7 +19,6 @@
   let kioskShowDrinkWindow = false;
 
   onMount(async () => {
-    document.body.style.overflow = 'hidden';
     try {
       const s = await getSettings();
       if (s) {
@@ -34,7 +34,6 @@
     } finally {
       loading = false;
     }
-    return () => { document.body.style.overflow = ''; };
   });
 
   async function save() {
@@ -59,20 +58,17 @@
     }
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
+
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="kiosk-panel-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('kiosk_panel_title')}</h2>
+        <h2 id="kiosk-panel-title">{$t('kiosk_panel_title')}</h2>
         <p class="subtitle">{$t('kiosk_panel_subtitle')}</p>
       </div>
-      <button class="close-btn" on:click={() => dispatch('close')}>
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('modal_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -103,6 +99,7 @@
               on:click={() => kioskEnabled = !kioskEnabled}
               role="switch"
               aria-checked={kioskEnabled}
+              aria-label={$t('kiosk_panel_enable')}
             >
               <span class="thumb"></span>
             </button>
@@ -129,6 +126,7 @@
               on:click={() => { if (kioskEnabled) kioskShowMap = !kioskShowMap; }}
               role="switch"
               aria-checked={kioskShowMap}
+              aria-label={$t('kiosk_panel_show_map')}
               disabled={!kioskEnabled}
             >
               <span class="thumb"></span>
@@ -144,6 +142,7 @@
               on:click={() => { if (kioskEnabled) kioskShowDrinkWindow = !kioskShowDrinkWindow; }}
               role="switch"
               aria-checked={kioskShowDrinkWindow}
+              aria-label={$t('kiosk_panel_show_drink_window')}
               disabled={!kioskEnabled}
             >
               <span class="thumb"></span>
@@ -159,6 +158,7 @@
               on:click={() => { if (kioskEnabled) kioskShowFooter = !kioskShowFooter; }}
               role="switch"
               aria-checked={kioskShowFooter}
+              aria-label={$t('kiosk_panel_show_footer')}
               disabled={!kioskEnabled}
             >
               <span class="thumb"></span>
@@ -167,40 +167,20 @@
         </div>
 
         <div class="footer-actions">
-          <button class="btn-save" on:click={save} disabled={saving}>
+          <button class="btn-primary btn-full" on:click={save} disabled={saving}>
             {saving ? $t('kiosk_panel_saving') : $t('kiosk_panel_save')}
           </button>
         </div>
       {/if}
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26,13,17,0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-  }
-
   .panel {
-    background: var(--surface);
-    width: 100%;
-    max-width: 420px;
     display: flex;
     flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0); opacity: 1; }
+    height: 100%;
   }
 
   .panel-header {
@@ -244,7 +224,7 @@
     border: 1px solid rgba(192,57,43,0.3);
     border-radius: 10px;
     font-size: 13px;
-    color: #c0392b;
+    color: var(--danger);
   }
 
   .ok-banner {
@@ -353,14 +333,5 @@
     padding-top: 8px;
   }
 
-  .btn-save {
-    width: 100%;
-    padding: 11px 16px;
-    border: none; border-radius: 10px;
-    background: var(--primary); color: white;
-    font-size: 14px; font-weight: 600;
-    transition: background 0.15s;
-  }
-  .btn-save:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-save:disabled { opacity: 0.55; cursor: default; }
+  .btn-full { width: 100%; }
 </style>

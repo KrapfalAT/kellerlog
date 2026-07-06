@@ -5,6 +5,7 @@
   export let wine;
   export let readonly = false;
   export let inventoryMode = false;
+  export let view = 'poster'; // 'poster' | 'thumb' | 'list'
   export let showDrinkWindow = false;
   export let drinkRules = [];
   export let selectable = false;
@@ -45,6 +46,24 @@
   $: bodyMap = { 'Light-bodied': $t('body_light'), 'Medium-bodied': $t('body_medium'), 'Full-bodied': $t('body_full') };
   $: acidMap = { 'Low': $t('acidity_low'), 'Medium': $t('acidity_medium'), 'High': $t('acidity_high') };
 
+  $: cardInteractive = selectable || (readonly && !inventoryMode);
+
+  function activateCard() {
+    if (selectable) {
+      dispatch('toggle', wine.id);
+    } else if (readonly && !inventoryMode) {
+      dispatch('select', wine);
+    }
+  }
+
+  function handleCardKeydown(e) {
+    if (!cardInteractive) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      activateCard();
+    }
+  }
+
   function handleIncrement(e) {
     e.stopPropagation();
     localQty++;
@@ -59,12 +78,19 @@
   }
 </script>
 
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <article class="card"
   class:clickable={!selectable && readonly && !inventoryMode}
   class:inv-mode={inventoryMode}
   class:selectable
   class:selected
-  on:click={() => selectable ? dispatch('toggle', wine.id) : (readonly && !inventoryMode && dispatch('select', wine))}
+  class:view-thumb={view === 'thumb'}
+  class:view-list={view === 'list'}
+  role={cardInteractive ? 'button' : undefined}
+  tabindex={cardInteractive ? 0 : undefined}
+  aria-pressed={selectable ? selected : undefined}
+  on:click={activateCard}
+  on:keydown={handleCardKeydown}
 >
   {#if selectable}
     <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
@@ -210,6 +236,10 @@
   .card.clickable:hover {
     transform: translateY(-4px);
   }
+  .card:focus-visible {
+    outline: 2.5px solid var(--primary);
+    outline-offset: 2px;
+  }
   .card.selectable {
     cursor: pointer;
   }
@@ -349,7 +379,7 @@
   .drink-young { background: #5b9bd5; }
   .drink-ready { background: #27ae60; }
   .drink-late  { background: #e67e22; }
-  .drink-past  { background: #c0392b; }
+  .drink-past  { background: var(--danger); }
   .rating {
     font-size: 14px;
     color: var(--accent);
@@ -419,7 +449,7 @@
     transition: color 0.15s, background 0.15s;
   }
   .btn-icon:hover { color: var(--primary); background: white; }
-  .btn-icon.danger:hover { color: #c0392b; }
+  .btn-icon.danger:hover { color: var(--danger); }
 
   .card.inv-mode { cursor: default; }
   .card.inv-mode:hover { transform: none; box-shadow: var(--shadow); }
@@ -441,7 +471,7 @@
     transition: background 0.12s, color 0.12s;
     cursor: pointer;
   }
-  .inv-minus { color: #c0392b; }
+  .inv-minus { color: var(--danger); }
   .inv-minus:hover { background: rgba(192, 57, 43, 0.08); }
   .inv-plus { color: var(--primary); }
   .inv-plus:hover { background: rgba(123, 29, 63, 0.08); }
@@ -461,5 +491,67 @@
 
   @media (hover: none) {
     .card-actions { opacity: 1; }
+  }
+
+  /* ── Thumb view ─────────────────────────────────────────── */
+  .card.view-thumb .card-image { height: 130px; }
+  .card.view-thumb .card-body { padding: 8px 10px; gap: 2px; }
+  .card.view-thumb .wine-name { font-size: 12px; -webkit-line-clamp: 1; }
+  .card.view-thumb .producer,
+  .card.view-thumb .meta-row,
+  .card.view-thumb .rating,
+  .card.view-thumb .wine-props,
+  .card.view-thumb .location-chip,
+  .card.view-thumb .pairings,
+  .card.view-thumb .card-footer { display: none; }
+
+  /* ── List view ──────────────────────────────────────────── */
+  .card.view-list { flex-direction: row; align-items: center; }
+  .card.view-list:hover { transform: none; }
+  .card.view-list .select-checkbox { position: static; margin: 0 0 0 14px; flex-shrink: 0; }
+  .card.view-list .card-image { width: 64px; height: 64px; flex: 0 0 64px; }
+  .card.view-list .card-body {
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 14px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .card.view-list .wine-name {
+    flex-shrink: 0;
+    max-width: 220px;
+    font-size: 14px;
+    -webkit-line-clamp: 1;
+  }
+  .card.view-list .producer {
+    flex-shrink: 0;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card.view-list .meta-row { flex-wrap: nowrap; flex-shrink: 0; }
+  .card.view-list .rating { flex-shrink: 0; }
+  .card.view-list .wine-props,
+  .card.view-list .location-chip,
+  .card.view-list .pairings { display: none; }
+  .card.view-list .card-footer {
+    margin: 0 0 0 auto;
+    padding-top: 0;
+    border-top: none;
+    flex-shrink: 0;
+  }
+  .card.view-list .inv-strip {
+    margin: 0 0 0 auto;
+    border-top: none;
+    border-left: 2px solid var(--primary);
+    align-self: stretch;
+  }
+  .card.view-list .card-actions {
+    position: static;
+    opacity: 1;
+    flex-shrink: 0;
+    margin-right: 10px;
   }
 </style>

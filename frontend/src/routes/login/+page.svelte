@@ -167,7 +167,7 @@
     border-radius: 10px;
     padding: 10px 14px;
     font-size: 13px;
-    color: #c0392b;
+    color: var(--danger);
   }
 
   .btn-login {

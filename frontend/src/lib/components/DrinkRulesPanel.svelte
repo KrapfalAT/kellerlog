@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { getDrinkRules, createDrinkRule, updateDrinkRule, deleteDrinkRule, getGrapes } from '$lib/api.js';
   import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -31,9 +32,7 @@
   let createError = '';
 
   onMount(async () => {
-    document.body.style.overflow = 'hidden';
     await Promise.all([load(), loadGrapes()]);
-    return () => { document.body.style.overflow = ''; };
   });
 
   async function load() {
@@ -114,10 +113,6 @@
     }
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
-
   function windowLabel(from, to) {
     const yr = new Date().getFullYear() - 3;
     return `${yr + from} – ${yr + to}`;
@@ -134,19 +129,18 @@
     { key: 'young', color: '#5b9bd5' },
     { key: 'ready', color: '#27ae60' },
     { key: 'late',  color: '#e67e22' },
-    { key: 'past',  color: '#c0392b' },
+    { key: 'past',  color: 'var(--danger)' },
   ];
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="drink-rules-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>{$t('drink_rules_title')}</h2>
+        <h2 id="drink-rules-title">{$t('drink_rules_title')}</h2>
         <p class="subtitle">{$t('drink_rules_subtitle')}</p>
       </div>
-      <button class="close-btn" on:click={() => dispatch('close')}>
+      <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('drink_rules_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -184,13 +178,13 @@
               {#if editingId === rule.id}
                 <div class="edit-form">
                   <div class="field">
-                    <label>{$t('drink_rules_name')}</label>
-                    <input type="text" bind:value={editName} />
+                    <label for="edit-name-{rule.id}">{$t('drink_rules_name')}</label>
+                    <input id="edit-name-{rule.id}" type="text" bind:value={editName} />
                   </div>
                   <div class="two-col">
                     <div class="field">
-                      <label>{$t('drink_rules_type')}</label>
-                      <select bind:value={editType}>
+                      <label for="edit-type-{rule.id}">{$t('drink_rules_type')}</label>
+                      <select id="edit-type-{rule.id}" bind:value={editType}>
                         <option value="">{$t('drink_rules_any_type')}</option>
                         {#each WINE_TYPES as wt}
                           <option value={wt}>{wt}</option>
@@ -198,24 +192,24 @@
                       </select>
                     </div>
                     <div class="field">
-                      <label>{$t('drink_rules_grape')}</label>
-                      <input type="text" list="grape-list" bind:value={editGrape} placeholder={$t('drink_rules_any_grape')} />
+                      <label for="edit-grape-{rule.id}">{$t('drink_rules_grape')}</label>
+                      <input id="edit-grape-{rule.id}" type="text" list="grape-list" bind:value={editGrape} placeholder={$t('drink_rules_any_grape')} />
                     </div>
                   </div>
                   <div class="offset-row">
                     <div class="field">
-                      <label>{$t('drink_rules_from')} <span class="example">+{editFrom}J.</span></label>
-                      <input type="number" min="0" max="50" bind:value={editFrom} />
+                      <label for="edit-from-{rule.id}">{$t('drink_rules_from')} <span class="example">+{editFrom}J.</span></label>
+                      <input id="edit-from-{rule.id}" type="number" min="0" max="50" bind:value={editFrom} />
                     </div>
                     <div class="arrow">→</div>
                     <div class="field">
-                      <label>{$t('drink_rules_to')} <span class="example">+{editTo}J.</span></label>
-                      <input type="number" min="1" max="100" bind:value={editTo} />
+                      <label for="edit-to-{rule.id}">{$t('drink_rules_to')} <span class="example">+{editTo}J.</span></label>
+                      <input id="edit-to-{rule.id}" type="number" min="1" max="100" bind:value={editTo} />
                     </div>
                   </div>
                   <div class="edit-actions">
-                    <button class="btn-cancel" on:click={() => editingId = null}>{$t('drink_rules_cancel')}</button>
-                    <button class="btn-save" on:click={saveEdit} disabled={saving}>
+                    <button class="btn-secondary" on:click={() => editingId = null}>{$t('drink_rules_cancel')}</button>
+                    <button class="btn-primary" on:click={saveEdit} disabled={saving}>
                       {saving ? $t('drink_rules_saving') : $t('drink_rules_save')}
                     </button>
                   </div>
@@ -230,13 +224,13 @@
                   <div class="window-preview">{windowLabel(rule.from_offset, rule.to_offset)}</div>
                 </div>
                 <div class="row-actions">
-                  <button class="icon-btn" title="Bearbeiten" on:click={() => startEdit(rule)}>
+                  <button class="icon-btn" title="Bearbeiten" aria-label="Bearbeiten" on:click={() => startEdit(rule)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                   </button>
-                  <button class="icon-btn danger" title="Löschen" on:click={() => handleDelete(rule)}>
+                  <button class="icon-btn danger" title="Löschen" aria-label="Löschen" on:click={() => handleDelete(rule)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6"/>
                       <path d="M19 6l-1 14H6L5 6"/>
@@ -273,18 +267,18 @@
             </div>
             <div class="offset-row">
               <div class="field">
-                <label>{$t('drink_rules_from')} <span class="example">+{newFrom}J.</span></label>
-                <input type="number" min="0" max="50" bind:value={newFrom} />
+                <label for="new-from">{$t('drink_rules_from')} <span class="example">+{newFrom}J.</span></label>
+                <input id="new-from" type="number" min="0" max="50" bind:value={newFrom} />
               </div>
               <div class="arrow">→</div>
               <div class="field">
-                <label>{$t('drink_rules_to')} <span class="example">+{newTo}J.</span></label>
-                <input type="number" min="1" max="100" bind:value={newTo} />
+                <label for="new-to">{$t('drink_rules_to')} <span class="example">+{newTo}J.</span></label>
+                <input id="new-to" type="number" min="1" max="100" bind:value={newTo} />
               </div>
             </div>
             <div class="edit-actions">
-              <button class="btn-cancel" on:click={() => { showCreate = false; createError = ''; }}>{$t('drink_rules_cancel')}</button>
-              <button class="btn-save" on:click={handleCreate} disabled={creating || !newName.trim()}>
+              <button class="btn-secondary" on:click={() => { showCreate = false; createError = ''; }}>{$t('drink_rules_cancel')}</button>
+              <button class="btn-primary" on:click={handleCreate} disabled={creating || !newName.trim()}>
                 {creating ? $t('drink_rules_creating') : $t('drink_rules_create')}
               </button>
             </div>
@@ -300,7 +294,7 @@
       {/if}
     </div>
   </div>
-</div>
+</Modal>
 
 <datalist id="grape-list">
   {#each grapes as g}
@@ -309,23 +303,10 @@
 </datalist>
 
 <style>
-  .overlay {
-    position: fixed; inset: 0;
-    background: rgba(26,13,17,0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex; align-items: stretch; justify-content: flex-end;
-  }
   .panel {
-    background: var(--surface);
-    width: 100%; max-width: 460px;
-    display: flex; flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0); opacity: 1; }
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
   .panel-header {
     display: flex; align-items: flex-start; justify-content: space-between;
@@ -350,7 +331,7 @@
     margin: 0 16px 8px;
     padding: 10px 14px;
     background: rgba(192,57,43,0.1); border: 1px solid rgba(192,57,43,0.3);
-    border-radius: 10px; font-size: 13px; color: #c0392b;
+    border-radius: 10px; font-size: 13px; color: var(--danger);
   }
 
   .info-box {
@@ -402,7 +383,7 @@
     transition: color 0.15s, background 0.15s;
   }
   .icon-btn:hover { color: var(--primary); background: rgba(123,29,63,0.08); }
-  .icon-btn.danger:hover { color: #c0392b; background: rgba(192,57,43,0.08); }
+  .icon-btn.danger:hover { color: var(--danger); background: rgba(192,57,43,0.08); }
 
   .edit-form, .create-form {
     display: flex; flex-direction: column; gap: 8px;
@@ -431,22 +412,11 @@
   .arrow { font-size: 16px; color: var(--text-muted); padding-bottom: 7px; text-align: center; }
 
   .edit-actions { display: flex; gap: 8px; margin-top: 2px; }
-  .btn-cancel {
-    flex: 1; padding: 7px 10px; border: 1.5px solid var(--border);
-    border-radius: 8px; background: none; font-size: 13px; font-weight: 600;
-    color: var(--text-muted); transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-cancel:hover { border-color: var(--primary); color: var(--primary); }
-  .btn-save {
-    flex: 2; padding: 7px 10px; border: none; border-radius: 8px;
-    background: var(--primary); color: white; font-size: 13px; font-weight: 600;
-    transition: background 0.15s;
-  }
-  .btn-save:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-save:disabled { opacity: 0.55; cursor: default; }
+  .edit-actions .btn-secondary { flex: 1; }
+  .edit-actions .btn-primary { flex: 2; }
 
   .err-inline {
-    font-size: 12px; color: #c0392b;
+    font-size: 12px; color: var(--danger);
     background: rgba(192,57,43,0.08); border-radius: 6px; padding: 6px 10px;
   }
 

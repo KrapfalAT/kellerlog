@@ -1,5 +1,6 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
+  import Modal from './Modal.svelte';
   import { lookupBarcode, uploadImage } from '$lib/api.js';
   import { t, lang } from '$lib/stores/i18n.js';
   import BarcodeScanner from './BarcodeScanner.svelte';
@@ -144,26 +145,18 @@
     } catch { /* no image in clipboard or permission denied */ }
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
 
-  onMount(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  });
 </script>
 
 {#if showScanner}
   <BarcodeScanner on:scan={handleScan} on:close={() => showScanner = false} />
 {/if}
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="backdrop" on:click={handleBackdrop}>
-  <div class="modal" role="dialog" aria-modal="true" on:paste={handlePaste}>
+<Modal variant="center" maxWidth="860px" labelledby="wine-modal-title" on:close={() => dispatch('close')}>
+  <div class="modal" on:paste={handlePaste}>
 
     <header class="modal-header">
-      <h2>{wine ? $t('modal_edit_title') : $t('modal_add_title')}</h2>
+      <h2 id="wine-modal-title">{wine ? $t('modal_edit_title') : $t('modal_add_title')}</h2>
       <button class="close-btn" on:click={() => dispatch('close')} aria-label={$t('modal_cancel')}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -177,8 +170,14 @@
         <!-- ─── Left: Image Panel ─────────────────────────────── -->
         <aside class="image-panel">
           <span class="panel-section-label">Bild</span>
-          <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-          <div class="img-container" class:has-image={!!form.image_url} on:click={() => { if (form.image_url) showLightbox = true; }}>
+          <div
+            class="img-container"
+            class:has-image={!!form.image_url}
+            role={form.image_url ? 'button' : undefined}
+            tabindex={form.image_url ? 0 : undefined}
+            on:click={() => { if (form.image_url) showLightbox = true; }}
+            on:keydown={(e) => { if (form.image_url && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showLightbox = true; } }}
+          >
             {#if form.image_url}
               <img src={form.image_url} alt={form.name} class="wine-img" />
               <button type="button" class="img-remove" on:click|stopPropagation={() => form.image_url = ''} title={$t('modal_remove_image')}>×</button>
@@ -460,7 +459,7 @@
       </div>
     </footer>
   </div>
-</div>
+</Modal>
 
 {#if showLightbox}
   <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
@@ -470,33 +469,11 @@
 {/if}
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-
   .modal {
-    background: var(--surface);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 860px;
-    max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-lg);
-    animation: slideIn 0.2s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateY(20px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
+    width: 100%;
+    height: 100%;
   }
 
   /* ── Header ────────────────────────────────────────────── */
@@ -905,7 +882,7 @@
 
   /* ── Error ──────────────────────────────────────────────── */
   .error {
-    background: #fde8e8; color: #c0392b;
+    background: #fde8e8; color: var(--danger);
     padding: 8px 12px; border-radius: 6px;
     font-size: 13px; margin-bottom: 12px;
   }
@@ -942,23 +919,6 @@
     font-size: 11px; color: var(--text-muted);
   }
   .footer-actions { display: flex; gap: 10px; }
-  .btn-primary {
-    background: var(--primary); color: white;
-    border: none; padding: 10px 22px;
-    border-radius: 8px; font-size: 14px; font-weight: 600;
-    transition: background 0.15s;
-  }
-  .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-secondary {
-    background: none; color: var(--text-muted);
-    border: 1.5px solid var(--border);
-    padding: 10px 20px; border-radius: 8px;
-    font-size: 14px; font-weight: 600;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-
   /* ── Mobile: image panel als horizontaler Strip ─────────── */
   @media (max-width: 639px) {
     .modal-layout { flex-direction: column; }
@@ -989,8 +949,8 @@
 
   /* ── Bottom-sheet on very small screens ─────────────────── */
   @media (max-width: 480px) {
-    .backdrop { padding: 0; align-items: flex-end; }
-    .modal {
+    :global(.kl-overlay-center) { padding: 0; align-items: flex-end; }
+    :global(.kl-panel-center) {
       max-width: 100%;
       border-radius: 20px 20px 0 0;
       max-height: 95vh;

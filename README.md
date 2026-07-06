@@ -15,10 +15,23 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 ## Features
 
 **Collection management**
-- Add, edit, and delete wines with photos, tasting notes, ratings, food pairings, and custom fields
+- Add, edit, and delete wines with photos, tasting notes, ratings, and food pairings
 - Filter by type, sort by date / rating / quantity, full-text search
 - Batch edit — select multiple wines and update type, region, or location at once
 - Click any wine to open a detail panel with a full-screen image lightbox
+- Audit trail — each entry records who created and last edited it, shown in the detail view
+
+**Photo search**
+- Paste an image straight from the clipboard (Ctrl+V) while adding or editing a wine
+- Or search by name via the Brave Image Search API, with a Google Images link as fallback
+
+**Custom fields**
+- Define your own fields to track anything the built-in schema doesn't cover
+- Configurable via the hamburger menu → **Custom Fields**; appear on every wine automatically
+
+**By-the-glass mode**
+- Mark a wine as available by the glass with its own price
+- Shown separately in the kiosk view for restaurant- or event-style setups
 
 **Barcode scanner**
 - Scan a bottle's EAN/UPC to auto-fill wine details from the local library
@@ -67,6 +80,12 @@ A self-hosted wine cellar management app. Track your collection, scan barcodes, 
 
 **i18n**
 - German and English UI; switchable per user
+
+**Security**
+- Login is rate-limited (5/minute, 20/hour per IP) to slow down brute-force attempts
+- Strict CSP and security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`) on every response
+- Interactive API docs (Swagger/ReDoc) are disabled; the OpenAPI schema is not exposed
+- Cross-origin access is opt-in via `ALLOWED_ORIGINS` — closed by default
 
 ---
 
@@ -126,6 +145,12 @@ KELLERLOG_SECRET_KEY=your_secret_key_here
 # Admin account (created on first run if no users exist)
 KELLERLOG_ADMIN_USER=admin
 KELLERLOG_ADMIN_PASSWORD=your_admin_password_here
+
+# Optional — enables photo search when adding/editing a wine
+BRAVE_SEARCH_KEY=
+
+# Optional — comma-separated CORS allow-list, only needed for cross-origin setups
+ALLOWED_ORIGINS=
 ```
 
 > If `KELLERLOG_ADMIN_PASSWORD` is not set, a random password is generated at startup and printed once to the container logs.
@@ -156,6 +181,8 @@ docker compose pull && docker compose up -d
 | `KELLERLOG_ADMIN_USER` | No | `admin` | Username for the initial admin account (first run only). |
 | `KELLERLOG_ADMIN_PASSWORD` | Recommended | *(auto-generated)* | Password for the initial admin account. |
 | `BACKEND_HOST` | No | `backend` | Hostname of the backend service as seen by nginx. |
+| `BRAVE_SEARCH_KEY` | No | — | Brave Search API key. Enables photo search when adding/editing a wine; omit to disable. |
+| `ALLOWED_ORIGINS` | No | *(none)* | Comma-separated list of allowed CORS origins, e.g. for accessing the API from a different domain. |
 
 ### User management
 
@@ -221,6 +248,7 @@ The backend exposes a REST API at `/api/`. Write endpoints require a `Bearer` to
 | `GET` | `/api/export/json` | Login | Export as JSON |
 | `GET` | `/api/export/csv` | Login | Export as CSV |
 | `POST` | `/api/import` | Admin | Import JSON or CSV |
+| `GET` | `/api/image-search` | Login | Photo search via Brave Image Search API |
 
 ### Library
 

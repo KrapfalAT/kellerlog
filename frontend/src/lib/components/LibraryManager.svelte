@@ -1,6 +1,8 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { getLibrary, deleteLibraryEntry } from '$lib/api.js';
+  import { t } from '$lib/stores/i18n.js';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -8,9 +10,9 @@
   let loading = true;
   let filterText = '';
 
-  const typeLabel = {
-    red: 'Rotwein', white: 'Weißwein', rosé: 'Rosé',
-    sparkling: 'Sekt', dessert: 'Dessertwein', other: 'Sonstiger'
+  $: typeLabel = {
+    red: $t('type_red'), white: $t('type_white'), rosé: $t('type_rose'),
+    sparkling: $t('type_sparkling'), dessert: $t('type_dessert'), other: $t('type_other')
   };
 
   $: filtered = entries.filter(e => {
@@ -30,8 +32,6 @@
     } finally {
       loading = false;
     }
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
   });
 
   async function handleDelete(id) {
@@ -40,22 +40,17 @@
     entries = entries.filter(e => e.id !== id);
   }
 
-  function handleBackdrop(e) {
-    if (e.target === e.currentTarget) dispatch('close');
-  }
-
   function stars(r) {
     if (!r) return '';
     return '★'.repeat(r) + '☆'.repeat(5 - r);
   }
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="overlay" on:click={handleBackdrop}>
+<Modal variant="drawer" labelledby="library-title" on:close={() => dispatch('close')}>
   <div class="panel">
     <div class="panel-header">
       <div>
-        <h2>Weinbibliothek</h2>
+        <h2 id="library-title">Weinbibliothek</h2>
         <p class="subtitle">Gespeicherte Weindaten — beim Suchen bevorzugt angezeigt</p>
       </div>
       <button class="close-btn" on:click={() => dispatch('close')} aria-label="Schließen">
@@ -123,6 +118,7 @@
               <button
                 class="add-btn"
                 title="Zum Keller hinzufügen"
+                aria-label="Zum Keller hinzufügen"
                 on:click|stopPropagation={() => dispatch('addToInventory', entry)}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -132,6 +128,7 @@
               <button
                 class="icon-action-btn"
                 title="Duplizieren"
+                aria-label="Duplizieren"
                 on:click|stopPropagation={() => dispatch('duplicateEntry', entry)}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -141,6 +138,7 @@
               <button
                 class="icon-action-btn"
                 title="Bearbeiten"
+                aria-label="Bearbeiten"
                 on:click|stopPropagation={() => dispatch('editEntry', entry)}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -151,6 +149,7 @@
               <button
                 class="delete-btn"
                 title="Aus Bibliothek entfernen"
+                aria-label="Aus Bibliothek entfernen"
                 on:click|stopPropagation={() => handleDelete(entry.id)}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -166,33 +165,13 @@
       {/if}
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 13, 17, 0.65);
-    backdrop-filter: blur(5px);
-    z-index: 150;
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-end;
-  }
-
   .panel {
-    background: var(--surface);
-    width: 100%;
-    max-width: 520px;
     display: flex;
     flex-direction: column;
-    box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-    animation: slideIn 0.25s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+    height: 100%;
   }
 
   .panel-header {
@@ -449,7 +428,7 @@
     transition: color 0.15s, background 0.15s;
   }
   .delete-btn:hover {
-    color: #c0392b;
+    color: var(--danger);
     background: rgba(192, 57, 43, 0.08);
   }
 </style>

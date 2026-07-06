@@ -85,6 +85,8 @@
   let filterType = 'all';
   let searchQuery = '';
   let sortBy = 'date';
+  let viewMode = (typeof localStorage !== 'undefined' && localStorage.getItem('kellerlog_view')) || 'poster';
+  $: if (typeof localStorage !== 'undefined') localStorage.setItem('kellerlog_view', viewMode);
 
   $: typeFilters = [
     { value: 'all',      label: $t('filter_all') },
@@ -381,7 +383,7 @@ function handleLibraryView(e) {
       </div>
 
       <div class="icon-group">
-        <button class="icon-btn" on:click={() => showLibrary = true} title={$t('nav_library')}>
+        <button class="icon-btn" on:click={() => showLibrary = true} title={$t('nav_library')} aria-label={$t('nav_library')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
           </svg>
@@ -395,7 +397,7 @@ function handleLibraryView(e) {
           </svg>
         </a>
         <div class="icon-sep"></div>
-        <button class="icon-btn" on:click={() => showMap = true} title={$t('nav_map')}>
+        <button class="icon-btn" on:click={() => showMap = true} title={$t('nav_map')} aria-label={$t('nav_map')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
             <line x1="8" y1="2" x2="8" y2="18"/>
@@ -404,7 +406,7 @@ function handleLibraryView(e) {
         </button>
         {#if $isAdmin}
         <div class="icon-sep"></div>
-        <button class="icon-btn" class:active={inventoryMode} on:click={() => { if (inventoryMode) { exitInventoryMode(); } else { inventoryMode = true; } }} title={$t('nav_inventory')}>
+        <button class="icon-btn" class:active={inventoryMode} on:click={() => { if (inventoryMode) { exitInventoryMode(); } else { inventoryMode = true; } }} title={$t('nav_inventory')} aria-label={$t('nav_inventory')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
           </svg>
@@ -548,6 +550,25 @@ function handleLibraryView(e) {
             {$t('batch_mode')}
           </button>
         {/if}
+        <div class="view-toggle">
+          <button class="view-btn" class:active={viewMode === 'poster'} on:click={() => viewMode = 'poster'} title={$t('view_poster')} aria-label={$t('view_poster')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="11" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/>
+              <rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="17" width="7" height="4" rx="1"/>
+            </svg>
+          </button>
+          <button class="view-btn" class:active={viewMode === 'thumb'} on:click={() => viewMode = 'thumb'} title={$t('view_thumb')} aria-label={$t('view_thumb')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </button>
+          <button class="view-btn" class:active={viewMode === 'list'} on:click={() => viewMode = 'list'} title={$t('view_list')} aria-label={$t('view_list')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+            </svg>
+          </button>
+        </div>
         <select class="control-sort" bind:value={sortBy}>
           <option value="date">{$t('sort_date')}</option>
           <option value="name">{$t('sort_name')}</option>
@@ -582,9 +603,9 @@ function handleLibraryView(e) {
       </div>
     {:else}
       <p class="result-count">{filteredWines.length} {filteredWines.length !== 1 ? $t('count_plural') : $t('count_singular')}</p>
-      <div class="wine-grid">
+      <div class="wine-grid" class:view-thumb={viewMode === 'thumb'} class:view-list={viewMode === 'list'}>
         {#each filteredWines as wine (wine.id)}
-          <WineCard {wine} {inventoryMode} readonly={!$isAdmin || inventoryMode} showDrinkWindow={$branding.showDrinkWindow} {drinkRules} selectable={selectionMode} selected={selectedIds.has(wine.id)} on:toggle={(e) => toggleSelection(e.detail)} on:select={(e) => selectedWine = e.detail} on:edit={handleEdit} on:delete={handleDelete} on:quantityChange={handleQuantityChange} />
+          <WineCard {wine} {inventoryMode} view={viewMode} readonly={!$isAdmin || inventoryMode} showDrinkWindow={$branding.showDrinkWindow} {drinkRules} selectable={selectionMode} selected={selectedIds.has(wine.id)} on:toggle={(e) => toggleSelection(e.detail)} on:select={(e) => selectedWine = e.detail} on:edit={handleEdit} on:delete={handleDelete} on:quantityChange={handleQuantityChange} />
         {/each}
       </div>
     {/if}
@@ -1097,7 +1118,7 @@ function handleLibraryView(e) {
     flex-shrink: 0;
     font-size: 12px;
     font-weight: 600;
-    color: #c0392b;
+    color: var(--danger);
     background: none;
     border: 1px solid rgba(192,57,43,0.3);
     border-radius: 6px;
@@ -1220,6 +1241,32 @@ function handleLibraryView(e) {
     cursor: pointer;
   }
 
+  .view-toggle {
+    display: flex;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .view-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: none;
+    border-right: 1.5px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .view-btn:last-child { border-right: none; }
+  .view-btn:hover { color: var(--primary); background: var(--surface-2); }
+  .view-btn.active {
+    background: var(--primary);
+    color: white;
+  }
+
   /* Grid */
   .result-count {
     font-size: 13px;
@@ -1230,6 +1277,15 @@ function handleLibraryView(e) {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 20px;
+  }
+  .wine-grid.view-thumb {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+  }
+  .wine-grid.view-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   /* States */
@@ -1251,7 +1307,7 @@ function handleLibraryView(e) {
     animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .error-box { color: #c0392b; }
+  .error-box { color: var(--danger); }
   .btn-retry {
     padding: 8px 18px;
     background: var(--primary);

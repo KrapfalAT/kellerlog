@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { BrowserMultiFormatReader } from '@zxing/browser';
+  import Modal from './Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -49,11 +50,10 @@
   }
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-<div class="scanner-overlay" on:click|self={close}>
+<Modal variant="center" maxWidth="420px" labelledby="scanner-title" on:close={close}>
   <div class="scanner-box">
     <header class="scanner-header">
-      <span>Barcode scannen</span>
+      <span id="scanner-title">Barcode scannen</span>
       <button class="close-btn" on:click={close} aria-label="Schließen">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -78,26 +78,15 @@
       <p class="hint">Barcode in den Rahmen halten</p>
     {/if}
   </div>
-</div>
+</Modal>
 
 <style>
-  .scanner-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 400;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
-
   .scanner-box {
     background: #111;
     border-radius: 16px;
     overflow: hidden;
     width: 100%;
-    max-width: 420px;
+    height: 100%;
     display: flex;
     flex-direction: column;
   }
